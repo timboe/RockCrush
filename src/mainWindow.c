@@ -25,7 +25,7 @@ static int s_frame = 0;
   #define BOARD_PIECES_Y 9
 //#elif defined(PBL_ROUND)
 //  #define BOARD_PIECES_Y 8
-#endif
+//#endif
 #define PIECE_PIXELS 15
 #define PIECE_SUB_PIXELS PIECE_PIXELS*SUB_PIXEL
 #define BOARD_PIECES BOARD_PIECES_X*BOARD_PIECES_Y
@@ -609,6 +609,8 @@ void removeAndReplace() {
 void gameLoop(void* data) {
   if (++s_frame == ANIM_FPS) s_frame = 0;
 
+
+
   switch (s_gameState) {
     case kIdle: break;
     case kAwaitingDirection: if (s_frame == 0 || s_frame == ANIM_FPS/2) redraw(); break;
@@ -621,6 +623,10 @@ void gameLoop(void* data) {
     case kSettleBoard: settleBoard(); break;
     default: break;
   }
+
+  // only if taking acceleromiter data
+  redraw();
+  
   app_timer_register(ANIM_DELAY, gameLoop, NULL);
 }
 
@@ -788,8 +794,6 @@ static void data_handler(AccelData* data, uint32_t num_samples) {
 
   if (s_motionCursor.y < 0) s_motionCursor.y += BOARD_SIZE_Y * SUB_PIXEL;
   else if (s_motionCursor.y > BOARD_SIZE_Y * SUB_PIXEL) s_motionCursor.y -= BOARD_SIZE_Y * SUB_PIXEL;
-
-  redraw();
 
 }
 
