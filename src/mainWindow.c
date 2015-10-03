@@ -1,7 +1,7 @@
 #include <pebble.h>
 #include "mainWindow.h"
 
-
+static bool s_modeAcc = true;
 
 static Layer* s_mainWindowLayer = NULL;
 static Layer* s_boardLayer = NULL;
@@ -675,8 +675,10 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
 
   } else {
 
-    if (BUTTON_ID_UP == button) --s_cursor.y;
-    else if (BUTTON_ID_SELECT == button) ++s_cursor.x;
+    if      (BUTTON_ID_UP == button && s_modeAcc == true ) --s_cursor.y;
+    else if (BUTTON_ID_UP == button && s_modeAcc == false) s_motionCursor.y -= PIECE_SUB_PIXELS;
+    else if (BUTTON_ID_SELECT == button && s_modeAcc == true)  ++s_cursor.x;
+    else if (BUTTON_ID_SELECT == button && s_modeAcc == false) s_motionCursor.x += PIECE_SUB_PIXELS;
     else if (BUTTON_ID_DOWN == button && s_gameState == kIdle) s_gameState = kAwaitingDirection;
     else if (BUTTON_ID_BACK == button) newGame();
     if (s_cursor.x >= BOARD_PIECES_X) s_cursor.x = 0;
@@ -771,11 +773,12 @@ static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
   }
 
   // Cursor
-  graphics_context_set_fill_color(ctx, GColorWhite);
-  graphics_context_set_stroke_color(ctx, GColorBlack);
-  graphics_fill_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 5);
-  graphics_draw_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 5);
-
+  if (s_modeAcc) {
+    graphics_context_set_fill_color(ctx, GColorWhite);
+    graphics_context_set_stroke_color(ctx, GColorBlack);
+    graphics_fill_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 5);
+    graphics_draw_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 5);
+  }
 
   // Redo border
   graphics_context_set_stroke_color(ctx, GColorBlack);
@@ -786,14 +789,18 @@ static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
 static void data_handler(AccelData* data, uint32_t num_samples) {
 
   // Update
-  s_motionCursor.x += data[0].x;
-  s_motionCursor.y += data[0].y;
+  s_motionCursor.x += data[0].x/4;
+  s_motionCursor.y -= data[0].y/4;
 
   if (s_motionCursor.x < 0) s_motionCursor.x += BOARD_SIZE_X * SUB_PIXEL;
   else if (s_motionCursor.x > BOARD_SIZE_X * SUB_PIXEL) s_motionCursor.x -= BOARD_SIZE_X * SUB_PIXEL;
 
   if (s_motionCursor.y < 0) s_motionCursor.y += BOARD_SIZE_Y * SUB_PIXEL;
   else if (s_motionCursor.y > BOARD_SIZE_Y * SUB_PIXEL) s_motionCursor.y -= BOARD_SIZE_Y * SUB_PIXEL;
+
+  // Translate
+  s_cursor.x = s_motionCursor.x / PIECE_SUB_PIXELS;
+  s_cursor.y = s_motionCursor.y / PIECE_SUB_PIXELS;
 
 }
 
