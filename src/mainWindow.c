@@ -988,7 +988,7 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
       int xy = XY(x,y);
       if (s_gameState == kFlashRemoved && s_pieces[xy].match != kUnmatched) {
         GColor highlight;
-        if      (s_pieces[xy].match == kMatchedOnce)  highlight = GColorLimerick;
+        if      (s_pieces[xy].match == kMatchedOnce)  highlight = GColorRajah;
         else if (s_pieces[xy].match == kMatchedTwice) highlight = GColorWindsorTan;
         else if (s_pieces[xy].match == kExploded)     {
           highlight = GColorRoseVale;
