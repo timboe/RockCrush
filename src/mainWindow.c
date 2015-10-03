@@ -818,6 +818,55 @@ void gameLoop(void* data) {
   app_timer_register(ANIM_DELAY, gameLoop, NULL);
 }
 
+/**  Called when a direction key is pressed when in SelectDirection mode
+ *   OR whenever a new cell is entered by the accelerometer
+ **/
+void checkSwitch(int x, int y) {
+  if (s_gameState != kAwaitingDirection) return;
+
+  // Check out of bounds (for button instagated)
+  if (y < 0 || y >= BOARD_PIECES_Y || x < 0 || x >= BOARD_PIECES_X) {
+    redraw(); //  why?
+    return;
+  }
+
+  s_switch.second.x = x;
+  s_switch.second.y = y;
+
+  s_gameState = kCheckMove;
+}
+
+static void dataHandler(AccelData* data, uint32_t num_samples) {
+  // Update
+  s_motionCursor.x += data[0].x / s_score.tiltMode; // 0=off, 1=high, 2=low
+  s_motionCursor.y -= data[0].y / s_score.tiltMode;
+
+  if (s_motionCursor.x < 0) s_motionCursor.x += BOARD_SIZE_X * SUB_PIXEL;
+  else if (s_motionCursor.x > BOARD_SIZE_X * SUB_PIXEL) s_motionCursor.x -= BOARD_SIZE_X * SUB_PIXEL;
+
+  if (s_motionCursor.y < 0) s_motionCursor.y += BOARD_SIZE_Y * SUB_PIXEL;
+  else if (s_motionCursor.y > BOARD_SIZE_Y * SUB_PIXEL) s_motionCursor.y -= BOARD_SIZE_Y * SUB_PIXEL;
+
+  GPoint before = s_cursor;
+
+  // Translate
+  s_cursor.x = s_motionCursor.x / (PIECE_SUB_PIXELS); //Note: quotes due to macro
+  s_cursor.y = s_motionCursor.y / (PIECE_SUB_PIXELS);
+
+  if (before.x != s_cursor.x || before.y != s_cursor.y) {
+    checkSwitch(s_cursor.x, s_cursor.y); // Check the square i just moved into
+  }
+
+}
+
+void tiltMode(bool on) {
+  if (on) {
+    accel_data_service_subscribe(1, dataHandler);
+    accel_service_set_sampling_rate(ACCEL_SAMPLING_25HZ);
+  } else{
+    accel_data_service_unsubscribe();
+  }
+}
 
 void newGame() {
   // Zero data store
@@ -850,23 +899,7 @@ void newGame() {
 }
 
 
-/**  Called when a direction key is pressed when in SelectDirection mode
- *   OR whenever a new cell is entered by the accelerometer
- **/
-void checkSwitch(int x, int y) {
-  if (s_gameState != kAwaitingDirection) return;
 
-  // Check out of bounds (for button instagated)
-  if (y < 0 || y >= BOARD_PIECES_Y || x < 0 || x >= BOARD_PIECES_X) {
-    redraw();
-    return;
-  }
-
-  s_switch.second.x = x;
-  s_switch.second.y = y;
-
-  s_gameState = kCheckMove;
-}
 
 void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
   ButtonId button = click_recognizer_get_button_id(recognizer);
@@ -1057,39 +1090,6 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
   graphics_context_set_stroke_color(ctx, GColorBlack);
   graphics_draw_rect(ctx, GRect(0, 0, BOARD_SIZE_X+1, BOARD_SIZE_Y+1));
 
-}
-
-static void data_handler(AccelData* data, uint32_t num_samples) {
-
-  // Update
-  s_motionCursor.x += data[0].x / s_score.tiltMode; // 0=off, 1=high, 2=low
-  s_motionCursor.y -= data[0].y / s_score.tiltMode;
-
-  if (s_motionCursor.x < 0) s_motionCursor.x += BOARD_SIZE_X * SUB_PIXEL;
-  else if (s_motionCursor.x > BOARD_SIZE_X * SUB_PIXEL) s_motionCursor.x -= BOARD_SIZE_X * SUB_PIXEL;
-
-  if (s_motionCursor.y < 0) s_motionCursor.y += BOARD_SIZE_Y * SUB_PIXEL;
-  else if (s_motionCursor.y > BOARD_SIZE_Y * SUB_PIXEL) s_motionCursor.y -= BOARD_SIZE_Y * SUB_PIXEL;
-
-  GPoint before = s_cursor;
-
-  // Translate
-  s_cursor.x = s_motionCursor.x / (PIECE_SUB_PIXELS); //Note: quotes due to macro
-  s_cursor.y = s_motionCursor.y / (PIECE_SUB_PIXELS);
-
-  if (before.x != s_cursor.x || before.y != s_cursor.y) {
-    checkSwitch(s_cursor.x, s_cursor.y); // Check the square i just moved into
-  }
-
-}
-
-void tiltMode(bool on) {
-  if (on) {
-    accel_data_service_subscribe(1, data_handler);
-    accel_service_set_sampling_rate(ACCEL_SAMPLING_25HZ);
-  } else{
-    accel_data_service_unsubscribe();
-  }
 }
 
 void mainWindowLoad(Window* parentWindow) {
