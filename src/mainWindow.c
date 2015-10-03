@@ -1,20 +1,40 @@
 #include <pebble.h>
 #include "mainWindow.h"
 
-static bool s_modeAcc = true;
+//
+
+static GRect s_wave[3];
+static int s_waveV = 0;
+static GRect s_liquid;
+GColor s_colourBackground;
+GColor s_colourForground;
+static int s_nWaves = 0;
+static int s_liquidEnd = 0;
+static int s_windowSizeY = 0;
+
+static bool s_autoMode = 1;
+
+
+
+static AppTimer* s_hintTimer = NULL;
+
+////
 
 static Layer* s_mainWindowLayer = NULL;
 static Layer* s_boardLayer = NULL;
 static StatusBarLayer* s_statusBar = NULL;
 
 static GPoint s_cursor = {0,0};
-static GPoint s_motionCursor = {500,500};
+static GPoint s_motionCursor = {400,400};
+static GPoint s_availableMove = {-1,-1};
+
+
 
 #define MS_IN_SEC 1000
 #define ANIM_FPS 25
 #define ANIM_FRAMES ANIM_FPS*ANIM_DURATION
 #define ANIM_DELAY MS_IN_SEC/ANIM_FPS
-#define GRAVITY 17
+#define GRAVITY 20
 static int s_frame = 0;
 //static int s_animateFrames = 0;
 
@@ -33,7 +53,6 @@ static int s_frame = 0;
 #define BOARD_SIZE_Y BOARD_PIECES_Y*PIECE_PIXELS
 
 // max is 7
-#define N_PRIMARY_COLOURS 7
 #define N_COLOURS 10
 typedef enum {
   kNONE,
@@ -47,6 +66,8 @@ typedef enum {
   kWhite,
   kBlack
 } Colour_t;
+
+static GPoint s_bombLocation[N_COLOURS];
 
 typedef enum {
   kUnmatched,
@@ -64,9 +85,18 @@ typedef enum {
   kFindMatches,
   kFlashRemoved,
   kRemoveAndReplace,
-  kSettleBoard
+  kSettleBoard,
+  kFindNextMove
 } GameState_t;
-GameState_t s_gameState = kIdle;
+GameState_t s_gameState = kIdle; // Game FSM
+
+typedef enum {
+  kWait,
+  kNewPoints,
+  kApplyPoints,
+  kCheckNewLevel
+} ScoreState_t;
+ScoreState_t s_scoreState;
 
 typedef enum {
   kRow,
@@ -74,15 +104,15 @@ typedef enum {
   kCross,
   kBOOM,
   kColourBoom,
-  kMiniBoom
-} ExplosionType_t;
+  kMiniBoom,
+  kMatch3, // Only used in scoring
+  kMatch4, // Only used in scoring
+  kMatchT // Only used in scoring
+} MatchType_t;
 
 #define N_CARDINAL 4
 typedef enum {
-  kN,
-  kE,
-  kS,
-  kW
+  kN, kE, kS, kW
 } Cardinal_t;
 
 static GPath* s_shapes[N_COLOURS] = {NULL};
@@ -90,7 +120,7 @@ static GPath* s_arrows[N_CARDINAL] = {NULL};
 
 static const GPathInfo shapeRed = {
   .num_points = 7,
-  .points = (GPoint []) {{2, 12}, {13, 13}, {11, 2}, {9, 7}, {7, 2}, {5, 9}, {3, 2}}
+  .points = (GPoint []) {{2, 12}, {13, 13}, {11, 2}, {9, 7}, {7, 2}, {5, 9}, {2, 2}}
 };
 
 static const GPathInfo shapePink = {
@@ -115,12 +145,12 @@ static const GPathInfo shapeYellow = {
 
 static const GPathInfo shapeBlue = {
   .num_points = 5,
-  .points = (GPoint []) {{2, 2}, {7, 6}, {13, 3}, {9, 13}, {5, 11}}
+  .points = (GPoint []) {{2, 2}, {7, 6}, {13, 3}, {9, 13}, {4, 11}}
 };
 
 static const GPathInfo shapePurple = {
   .num_points = 3,
-  .points = (GPoint []) {{2, 2}, {13, 10}, {6, 13}}
+  .points = (GPoint []) {{3, 2}, {13, 10}, {6, 13}}
 };
 
 static const GPathInfo shapeWhite = {
@@ -153,6 +183,9 @@ static const GPathInfo shapeW = {
   .points = (GPoint []) {{-1, 0}, {-1, 15}, {-8, 9}, {-8, 6}}
 };
 
+#define N_LEVEL_COLOURS 13
+static GColor s_levelColour[N_LEVEL_COLOURS];
+
 typedef struct {
   Colour_t colour;
   GPoint loc;
@@ -168,6 +201,18 @@ typedef struct {
 } Switch_t;
 Switch_t s_switch;
 
+typedef struct {
+  int pointsToNextLevel;
+  int level; // how many points are needed to get to next level
+  int lives;
+  int pointBuffer; // points buffered before awarding
+  int points; // points after awarded
+  int hintOn;
+  int tiltMode;
+  int nColoursActive;
+} Score_t;
+Score_t s_score;
+
 int XY(int x, int y) { return x + (BOARD_PIECES_X * y); }
 
 int XYp(GPoint p) { return XY(p.x,p.y); }
@@ -176,6 +221,30 @@ void redraw() {
   layer_mark_dirty(s_mainWindowLayer);
 };
 
+// One point per square in a match 3
+#define SCORE_3 3
+// Two points per square in a match 4
+#define SCORE_4 6
+//Note this is bonus on top of two x SCORE_3's
+#define SCORE_T 9
+// Two points per square clearing a row/col
+#define SCORE_ROW 2*BOARD_PIECES_X
+#define SCORE_COLUMN 2*BOARD_PIECES_Y
+// Two points _per exploded piece_
+#define SCORE_BOOM 2
+void score(MatchType_t type, int n) {
+  int b4 = s_score.pointBuffer;
+  switch (type) {
+    case kRow: s_score.pointBuffer += SCORE_COLUMN; break;
+    case kColumn: s_score.pointBuffer += SCORE_ROW; break;
+    case kCross: s_score.pointBuffer += (SCORE_ROW+SCORE_COLUMN); break;
+    case kBOOM: case kColourBoom: case kMiniBoom: s_score.pointBuffer += SCORE_BOOM * n; break;
+    case kMatch3: s_score.pointBuffer += SCORE_3; break;
+    case kMatch4: s_score.pointBuffer += SCORE_4; break;
+    case kMatchT: s_score.pointBuffer += SCORE_T; break;
+  }
+  APP_LOG(APP_LOG_LEVEL_INFO, "points enum %i scored %i", type, s_score.pointBuffer - b4);
+}
 
 bool checkTriplet(Colour_t a, Colour_t b, Colour_t switchColour) {
     if (a == kNONE || b == kNONE || switchColour == kNONE) return false;
@@ -209,6 +278,7 @@ void switchPieces() {
   s_pieces[ XYp(s_switch.second) ] = temp;
 }
 
+
 // See if the given location has a match
 bool checkLocation(GPoint location) {
   for (int check=0; check < 6; ++check) {
@@ -229,7 +299,7 @@ bool checkLocation(GPoint location) {
       continue;
     }
 
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Check #%i", check);
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "Check #%i", check);
     bool isValid = checkTriplet( s_pieces[XY(location.x+xA, location.y+yA)].colour,
       s_pieces[XY(location.x+xB, location.y+yB)].colour,
       s_pieces[XYp(location)].colour);
@@ -238,8 +308,8 @@ bool checkLocation(GPoint location) {
   return false;
 }
 
-// Need to look two away on either side 0000CCSCC0000. 0=ignore, C=check, S=swap
-void checkMove() {
+// Need to look two away on either side 0000CCSCC0000. 0=ignore, C=check, S=swap in both V and H
+bool checkMove() {
 
   // we switch the colours temporarily
   switchColours(s_switch.first, s_switch.second);
@@ -247,17 +317,28 @@ void checkMove() {
 
   for (int p=0; p<2; ++p) {
     // Look in location A with location B's colour and visa versa
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Check first/second=%i", p);
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "Check first/second=%i", p);
     if (p == 0) isValid = checkLocation(s_switch.first);
     if (p == 1) isValid = checkLocation(s_switch.second);
     if (isValid) break;
   }
 
-  if (isValid) s_gameState = kSwapAnimate;
-  else s_gameState = kNudgeAnimate;
-
   // switch back! we will animate the actual pieces into their new positions
   switchColours(s_switch.first, s_switch.second);
+
+  // This routine also finds the computer a valid next move
+  if (s_gameState == kFindNextMove) return isValid;
+
+  // If it was user initiated we take action with the FSM
+  if (isValid == true) {
+    s_gameState = kSwapAnimate;
+    s_score.hintOn = 0;
+    if (s_hintTimer) app_timer_cancel(s_hintTimer);
+    s_hintTimer = NULL;
+  } else {
+    s_gameState = kNudgeAnimate;
+  }
+  return false; // This return to the FSM says no need to re-draw
 }
 
 void updateSwitchPiecePhysics(int v) {
@@ -276,12 +357,13 @@ void updateSwitchPiecePhysics(int v) {
   }
 }
 
-void nudgeAnimate() {
-  static int v = 0;
-  static int mode = 0;
 
-  if (mode == 0 && v >= 0) mode = 1;
-  else if (mode == 1 && v <= -70) mode = 2;
+#define NUDGE_MAX_SPEED 70
+bool nudgeAnimate() {
+  static int v = 0, mode = 0;
+
+  if (mode == 0 && v >= NUDGE_MAX_SPEED) mode = 1;
+  else if (mode == 1 && v <= -NUDGE_MAX_SPEED) mode = 2;
   else if (mode == 2 && v >= 0) mode = 3;
 
   if (mode == 0 || mode == 2) v += GRAVITY;
@@ -295,13 +377,12 @@ void nudgeAnimate() {
     s_gameState = kIdle;
   }
 
-  redraw();
+  return true; // Redraw
 }
 
-void swapAnimate() {
+bool swapAnimate() {
   static int v = 0, mode = 0, travel = 0;
-  static GPoint firstStart;
-  static GPoint secondStart;
+  static GPoint firstStart, secondStart;
 
   if (mode == 0) {
     firstStart = s_pieces[ XYp(s_switch.first) ].loc;
@@ -312,7 +393,7 @@ void swapAnimate() {
   } else if (mode == 1) {
     v += GRAVITY*2;
     travel += v;
-    updateSwitchPiecePhysics(v); //why-?
+    updateSwitchPiecePhysics(v);
     if (travel / SUB_PIXEL >= PIECE_PIXELS/2)  {
       mode = 2;
       travel = 0;
@@ -325,15 +406,13 @@ void swapAnimate() {
       mode = 0;
       s_gameState = kFindMatches;
       // The animation leaves the pices in around the right location, but not exact! Snap them back to the grid
-      //APP_LOG(APP_LOG_LEVEL_DEBUG,"start %i %i fin %i %i", firstStart.x, firstStart.y, s_pieces[ XYp(s_switch.second) ].loc.x, s_pieces[ XYp(s_switch.second) ].loc.y);
       s_pieces[ XYp(s_switch.first) ].loc = secondStart; // Make switch sub-pixel perfect
       s_pieces[ XYp(s_switch.second) ].loc = firstStart;
       switchPieces(); // Do a full copy
-      //APP_LOG(APP_LOG_LEVEL_DEBUG,"start %i %i fin %i %i", firstStart.x, firstStart.y, s_pieces[ XYp(s_switch.second) ].loc.x, s_pieces[ XYp(s_switch.second) ].loc.y);
     }
   }
 
-  redraw();
+  return true; // Redraw
 }
 
 // Return true if the coordinates point to a switched piece
@@ -345,7 +424,8 @@ bool isSwitch(int x, int y) {
 }
 
 // Explosion always takes preference at the moment. May rebalance?
-void explode(ExplosionType_t dir, int x, int y, Colour_t c) {
+void explode(MatchType_t dir, int x, int y, Colour_t c) {
+  int n = 0; // number of exploded
   if (dir == kRow) {
     APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE ROW %i", y);
     for (int X = 0; X < BOARD_PIECES_X; ++X) s_pieces[XY(X,y)].match = kExploded;
@@ -355,7 +435,7 @@ void explode(ExplosionType_t dir, int x, int y, Colour_t c) {
   } else if (dir == kCross){
     APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE CROSS %i %i", x, y);
     for (int Y = 0; Y < BOARD_PIECES_Y; ++Y) s_pieces[XY(x,Y)].match = kExploded;
-    for (int X = 0; X < BOARD_PIECES_X; ++X) s_pieces[XY(0,y)].match = kExploded;
+    for (int X = 0; X < BOARD_PIECES_X; ++X) s_pieces[XY(X,y)].match = kExploded;
   } else if (dir == kBOOM) {
     APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE BIG %i %i", x, y);
     for (int X = x-2; X <= x+2; ++X) {
@@ -367,6 +447,7 @@ void explode(ExplosionType_t dir, int x, int y, Colour_t c) {
         if (X == x-2 && Y == y+2) continue;
         if (X == x+2 && Y == y-2) continue;
         s_pieces[XY(X,Y)].match = kExploded;
+        ++n;
       }
     }
   } else if (dir == kColourBoom) {
@@ -375,6 +456,7 @@ void explode(ExplosionType_t dir, int x, int y, Colour_t c) {
       for (int Y = 0; Y < BOARD_PIECES_Y; ++Y) {
         if (s_pieces[XY(X,Y)].colour == c) {
           s_pieces[XY(X,Y)].match = kExploded;
+          ++n;
         }
       }
     }
@@ -386,32 +468,31 @@ void explode(ExplosionType_t dir, int x, int y, Colour_t c) {
         if (Y < 0 || Y >= BOARD_PIECES_Y) continue;
         if (s_pieces[XY(X,Y)].colour == c) {
           s_pieces[XY(X,Y)].match = kExploded;
+          ++n;
         }
       }
     }
   }
+  score(dir, n);
 }
 
 /**
  * Iterate the game board and markup for found combinations
  **/
-void findMatches() {
+bool findMatches() {
   // One look for explosions
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "F M");
 
   bool matchesFound = false;
 
-
   // Double or singe black? Must be a switch
   if (s_switch.first.x != -1) {
-    // double black
-    if (s_pieces[XYp(s_switch.first)].colour == kBlack && s_pieces[XYp(s_switch.second)].colour == kBlack) {
+    if (s_pieces[XYp(s_switch.first)].colour == kBlack && s_pieces[XYp(s_switch.second)].colour == kBlack) { // double black
       explode(kBOOM, s_switch.second.x, s_switch.second.y, 0);
       matchesFound = true;
-    } else if (s_pieces[XYp(s_switch.first)].colour == kWhite && s_pieces[XYp(s_switch.second)].colour == kBlack) {
+    } else if (s_pieces[XYp(s_switch.first)].colour == kWhite && s_pieces[XYp(s_switch.second)].colour == kBlack) { //White black
       explode(kCross, s_switch.second.x, s_switch.second.y, 0);
       matchesFound = true;
-    } else if (s_pieces[XYp(s_switch.first)].colour == kBlack && s_pieces[XYp(s_switch.second)].colour == kWhite) {
+    } else if (s_pieces[XYp(s_switch.first)].colour == kBlack && s_pieces[XYp(s_switch.second)].colour == kWhite) { //Black white
       explode(kCross, s_switch.second.x, s_switch.second.y, 0);
       matchesFound = true;
     } else if (s_pieces[XYp(s_switch.first)].colour == kBlack) { // Single black A
@@ -424,20 +505,6 @@ void findMatches() {
       matchesFound = true;
     }
   }
-
-  // // Double white?
-  // for (int x=0; x < BOARD_PIECES_X; ++x) {
-  //   for (int y=0; y < BOARD_PIECES_Y; ++y) { // Loop to third from bottom
-  //     if (s_pieces[XY(x,y)].colour != kWhite) continue;
-  //     if      (x+1 < BOARD_PIECES_X && s_pieces[XY(x+1,y)].colour == kWhite) { matchesFound = true; explode(kColumn,0,y,0); }
-  //     else if (x-1 > 0              && s_pieces[XY(x-1,y)].colour == kWhite) { matchesFound = true; explode(kColumn,0,y,0); }
-  //     else if (y+1 < BOARD_PIECES_Y && s_pieces[XY(x,y+1)].colour == kWhite) { matchesFound = true; explode(kRow,x,0,0); }
-  //     else if (y-1 > 0              && s_pieces[XY(x,y-1)].colour == kWhite) { matchesFound = true; explode(kRow,x,0,0); }
-  //   }
-  // }
-  //
-
-
 
   for (int dir = 0; dir < 2; ++dir) {
 
@@ -464,15 +531,14 @@ void findMatches() {
           nextY = y;
         }
 
-        // TODO what if first is white? Can we fix this by taking the next colour?
         Colour_t runColour = s_pieces[XY(x,y)].colour;
 
         while (1) {
           if ( s_pieces[XY(x,y)].match == kExploded ) break;
-          if (runColour == kWhite) runColour = s_pieces[XY(nextX,nextY)].colour;
+          if (runColour == kWhite) runColour = s_pieces[XY(nextX,nextY)].colour; // If first colour(s) were white - need to update
 
-          else if ( s_pieces[XY(nextX,nextY)].colour == runColour) {} // Progress Same colour
-          else if ( s_pieces[XY(nextX,nextY)].colour == kWhite ) {} // Progress Wildcard
+          else if ( s_pieces[XY(nextX,nextY)].colour == runColour) {} // Progress - Same colour
+          else if ( s_pieces[XY(nextX,nextY)].colour == kWhite ) {} // Progress - Wildcard
           else break;
 
           ++runSize;
@@ -484,9 +550,13 @@ void findMatches() {
         if (runSize > 4) {
           // Find colour
           explode(kColourBoom, 0, 0, runColour);
+          s_bombLocation[runColour] = GPoint(x*PIECE_PIXELS + PIECE_PIXELS/2, y*PIECE_PIXELS + PIECE_PIXELS/2);
+          if (dir == 0) s_bombLocation[runColour].y += 2*PIECE_PIXELS; // Centre on the 3rd
+          else s_bombLocation[runColour].x += 2*PIECE_PIXELS;
           matchesFound = true;
         } else if (runSize > 2) {
           APP_LOG(APP_LOG_LEVEL_DEBUG,"MATCH-3");
+          runSize == 3 ? score(kMatch3, 0) : score(kMatch4, 0);
           if  (dir == 0) for (int P=y; P < nextY; ++P) s_pieces[XY(x,P)].match++; // A piece can be matched up to twice
           else           for (int P=x; P < nextX; ++P) s_pieces[XY(P,y)].match++;
           matchesFound = true;
@@ -518,11 +588,11 @@ void findMatches() {
     }
   }
 
-
   // Promote black
   for (int x=0; x < BOARD_PIECES_X; ++x) {
     for (int y=0; y < BOARD_PIECES_Y; ++y) {
       if (s_pieces[XY(x,y)].match == kMatchedTwice) {
+        score(kMatchT, 0);
         s_pieces[XY(x,y)].promoteFlag = kBlack;
         APP_LOG(APP_LOG_LEVEL_DEBUG,"PROMOTE BLACK");
       }
@@ -534,20 +604,64 @@ void findMatches() {
   s_switch.second = GPoint(-1,-1);
 
   if (matchesFound == true) s_gameState = kFlashRemoved;
-  else                      s_gameState = kIdle;
+  else                      s_gameState = kFindNextMove; // Let the comp find a valid move, if any
+
+  APP_LOG(APP_LOG_LEVEL_DEBUG,"end findMatchs");
+  return false; // don't redraw
 }
 
-void flashRemoved() {
+void enableHint(void* data) {
+  s_score.hintOn = 1;
+  redraw();
+  s_hintTimer = NULL;
+}
+
+// Find a next legal move
+#define HINT_TIMER MS_IN_SEC*20
+bool findNextMove() {
+  for (int x=0; x < BOARD_PIECES_X; ++x) {
+    for (int y=0; y < BOARD_PIECES_Y-1; ++y) {
+      s_switch.first = GPoint(x,y);
+      s_switch.second = GPoint(x,y+1);
+      if (checkMove() == true) { // If valid
+        s_availableMove = s_switch.first;
+        s_gameState = kIdle;
+        if (s_autoMode == true) s_gameState = kCheckMove;
+        s_hintTimer = app_timer_register(HINT_TIMER, enableHint, NULL);
+        return false; // don't redraw
+      }
+    }
+  }
+  for (int x=0; x < BOARD_PIECES_X-1; ++x) {
+    for (int y=0; y < BOARD_PIECES_Y; ++y) {
+      s_switch.first = GPoint(x,y);
+      s_switch.second = GPoint(x+1,y);
+      if (checkMove() == true) {
+        s_availableMove = s_switch.first;
+        s_gameState = kIdle;
+        if (s_autoMode == true) s_gameState = kCheckMove;
+        s_hintTimer = app_timer_register(HINT_TIMER, enableHint, NULL);
+        return false;  // don't redraw
+      }
+    }
+  }
+
+  s_availableMove = GPoint(-1,-1);
+  s_gameState = kIdle;
+  return false; // don't redraw
+}
+
+bool flashRemoved() {
   static int count = 0;
   if (++count > ANIM_FPS/2) {
     count = 0;
+    for (int i = 0; i < N_COLOURS; ++i) s_bombLocation[i].x = -1;
     s_gameState = kRemoveAndReplace;
   }
-  redraw();
+  return true; // redraw
 }
 
-
-void settleBoard() {
+bool settleBoard() {
   bool settled = true;
   for (int x=0; x < BOARD_PIECES_X; ++x) {
     for (int y=0; y < BOARD_PIECES_Y; ++y) {
@@ -564,14 +678,14 @@ void settleBoard() {
   }
 
   if (settled) s_gameState = kFindMatches;
-  redraw();
+  return true; // redraw
 }
 
 
 /**
  * Remove matched pieces, fill in.
  **/
-void removeAndReplace() {
+bool removeAndReplace() {
   // REMOVE
   for (int x=0; x < BOARD_PIECES_X; ++x) {
     for (int y=BOARD_PIECES_Y-1; y >= 0; --y) {
@@ -598,34 +712,108 @@ void removeAndReplace() {
       if (pieceMoved == false) {
         // Generate a new piece off the top
         s_pieces[XY(x,y)].loc.y =  -(++newPieces * PIECE_SUB_PIXELS);
-        s_pieces[XY(x,y)].colour = (rand() % N_PRIMARY_COLOURS) + 1;
+        s_pieces[XY(x,y)].colour = (rand() % s_score.nColoursActive) + 1;
       }
     }
   }
   APP_LOG(APP_LOG_LEVEL_DEBUG,"END MOVE");
   s_gameState = kSettleBoard;
+  return false; // don't redraw
+}
+
+bool awaitingDirection() {
+  if (s_frame % 20 == 0) return true; // Flashing cursor only
+  return false;
+}
+
+bool checkScoreBuffer() {
+  if (s_score.pointBuffer == 0) return false;
+
+  // Do we have a little or a lot of points to award?
+  if (s_score.pointBuffer >= s_score.pointsToNextLevel/5) s_nWaves = 3; // > 20%
+  else if (s_score.pointBuffer >= s_score.pointsToNextLevel/20) s_nWaves = 2; // > 5%
+  else if (s_score.pointBuffer >= s_score.pointsToNextLevel/100) s_nWaves = 1; // > 1 %
+  else return false; // Not enough
+
+  s_wave[0].origin.y = (s_windowSizeY) * SUB_PIXEL; //size 10
+  s_wave[1].origin.y = (s_windowSizeY + 20) * SUB_PIXEL; // gap 10, size 20
+  s_wave[2].origin.y = (s_windowSizeY + 50) * SUB_PIXEL; // gap 10, size 30
+  s_waveV = 0;
+
+  APP_LOG(APP_LOG_LEVEL_INFO, "buffer has: %i, tot points: %i, pointsToNextLevel: %i", s_score.pointBuffer, s_score.points, s_score.pointsToNextLevel );
+
+
+  s_score.points += s_score.pointBuffer;
+  s_score.pointBuffer = 0;
+  if (s_score.points > s_score.pointsToNextLevel) s_score.points = s_score.pointsToNextLevel;
+
+  // Where should the liquid now end?
+  int fraction = 100 - ((s_score.points * SUB_PIXEL) / s_score.pointsToNextLevel); // 0 - 100
+  s_liquidEnd = (fraction * s_windowSizeY);// [don't divide through, keep in subpixel]  / SUB_PIXEL;
+
+  APP_LOG(APP_LOG_LEVEL_INFO, "fraction: %i, nWaves: %i, Y: %i, Ysp: %i", fraction, s_nWaves, s_liquidEnd/SUB_PIXEL, s_liquidEnd);
+
+  s_scoreState = kApplyPoints;
+  return false;
+}
+
+bool applyPoints() {
+  s_waveV += GRAVITY;
+  for (int i = 0; i < 3; ++i) s_wave[i].origin.y -= s_waveV;
+
+  if (s_liquid.origin.y > s_liquidEnd && s_wave[0].origin.y + (5*SUB_PIXEL) < s_liquidEnd) s_liquid.origin.y -= s_waveV;
+
+  if (s_wave[2].origin.y + (s_wave[2].size.h * SUB_PIXEL) < 0) s_scoreState = kCheckNewLevel;
+  return true;
+}
+
+bool checkNewLevel() {
+  if (s_score.points >= s_score.pointsToNextLevel) {
+    s_score.points -= s_score.pointsToNextLevel;
+    s_score.pointsToNextLevel *= 1; //TODO balance this
+    ++s_score.level;
+    int nextFG = s_score.level;
+    int nextBG = s_score.level - 1;
+    while (nextFG >= N_LEVEL_COLOURS) nextFG -= N_LEVEL_COLOURS;
+    while (nextBG >= N_LEVEL_COLOURS) nextBG -= N_LEVEL_COLOURS;
+    s_colourForground = s_levelColour[ nextFG ];
+    s_colourBackground  = s_levelColour[ nextBG ];
+    s_liquidEnd = s_windowSizeY * SUB_PIXEL;
+    s_liquid.origin.y = s_windowSizeY * SUB_PIXEL;
+  }
+  s_nWaves = 0;
+  s_scoreState = kWait;
+  return true;
 }
 
 void gameLoop(void* data) {
   if (++s_frame == ANIM_FPS) s_frame = 0;
 
-
+  bool requestRedraw = false;
 
   switch (s_gameState) {
     case kIdle: break;
-    case kAwaitingDirection: if (s_frame == 0 || s_frame == ANIM_FPS/2) redraw(); break;
-    case kCheckMove: checkMove(); break;
-    case kNudgeAnimate: nudgeAnimate(); break;
-    case kSwapAnimate: swapAnimate(); break;
-    case kFindMatches: findMatches(); break;
-    case kFlashRemoved: flashRemoved(); break;
-    case kRemoveAndReplace: removeAndReplace(); break;
-    case kSettleBoard: settleBoard(); break;
+    case kAwaitingDirection: requestRedraw = awaitingDirection(); break;
+    case kCheckMove: requestRedraw = checkMove(); break;
+    case kNudgeAnimate: requestRedraw = nudgeAnimate(); break;
+    case kSwapAnimate: requestRedraw = swapAnimate(); break;
+    case kFindMatches: requestRedraw = findMatches(); break;
+    case kFlashRemoved: requestRedraw = flashRemoved(); break;
+    case kRemoveAndReplace: requestRedraw = removeAndReplace(); break;
+    case kSettleBoard: requestRedraw = settleBoard(); break;
+    case kFindNextMove: requestRedraw = findNextMove(); break;
     default: break;
   }
 
-  // only if taking acceleromiter data
-  redraw();
+  switch (s_scoreState) {
+    case kWait: requestRedraw |= checkScoreBuffer(); break;
+    case kApplyPoints: requestRedraw |= applyPoints(); break;
+    case kCheckNewLevel: requestRedraw |= checkNewLevel(); break;
+    default: break;
+  }
+
+  // only if taking acceleromiter data do we ALWAY redraw
+  if (s_score.tiltMode > 0 || requestRedraw == true) redraw();
 
   app_timer_register(ANIM_DELAY, gameLoop, NULL);
 }
@@ -634,13 +822,21 @@ void gameLoop(void* data) {
 void newGame() {
   // Zero data store
   memset(&s_pieces, 0, BOARD_PIECES_X * BOARD_PIECES_Y * sizeof(Piece_t));
+  memset(&s_score, 0, sizeof(Score_t));
+  // Init score
+  s_score.level = 1;
+  s_score.lives = 3;
+  s_score.pointsToNextLevel = 25;
+  s_score.nColoursActive = 4;
+  s_colourForground = s_levelColour[ 1 ];
+  s_colourBackground  = s_levelColour[ 0 ];
   // Fill with colour
   int offset = BOARD_SIZE_Y * SUB_PIXEL;
   for (int y = BOARD_PIECES_Y-1; y >= 0; --y) {
     for (int x = 0; x < BOARD_PIECES_X; ++x) {
       bool placing = true;
       while (placing) {
-        s_pieces[ XY(x,y) ].colour = (rand() % N_PRIMARY_COLOURS) + 1;
+        s_pieces[ XY(x,y) ].colour = (rand() % s_score.nColoursActive) + 1;
         placing = checkLocation(GPoint(x,y)); // if match found then we're still placing as we need to try again
       }
       s_pieces[ XY(x,y) ].loc.x = x * PIECE_SUB_PIXELS; // Set location
@@ -650,6 +846,7 @@ void newGame() {
   }
   s_gameState = kSettleBoard;
 }
+
 
 /**  Called when a direction key is pressed when in SelectDirection mode
  *   OR whenever a new cell is entered by the accelerometer
@@ -682,20 +879,23 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
 
   } else {
 
-    if      (BUTTON_ID_UP == button && s_modeAcc == false) --s_cursor.y;
-    else if (BUTTON_ID_UP == button && s_modeAcc == true ) s_motionCursor.y -= PIECE_SUB_PIXELS;
-    else if (BUTTON_ID_SELECT == button && s_modeAcc == false)  ++s_cursor.x;
-    else if (BUTTON_ID_SELECT == button && s_modeAcc == true) s_motionCursor.x += PIECE_SUB_PIXELS;
+    if      (BUTTON_ID_UP == button && s_score.tiltMode == 0) --s_cursor.y;
+    else if (BUTTON_ID_UP == button && s_score.tiltMode >  0) s_motionCursor.y -= PIECE_SUB_PIXELS;
+    else if (BUTTON_ID_SELECT == button && s_score.tiltMode == 0) ++s_cursor.x;
+    else if (BUTTON_ID_SELECT == button && s_score.tiltMode >  0) s_motionCursor.x += PIECE_SUB_PIXELS;
     else if (BUTTON_ID_DOWN == button && s_gameState == kIdle) {
       s_gameState = kAwaitingDirection;
       s_switch.first = s_cursor;
-    } else if (BUTTON_ID_BACK == button) newGame();
+    } else if (BUTTON_ID_BACK == button) {
+      newGame();
+      s_autoMode = !s_autoMode;
+    }
+
     if (s_cursor.x >= BOARD_PIECES_X) s_cursor.x = 0;
     if (s_cursor.y < 0) s_cursor.y = BOARD_PIECES_Y - 1;
+
     redraw();
-
   }
-
 }
 
 void mainWindowClickConfigProvider(Window *window) {
@@ -705,11 +905,54 @@ void mainWindowClickConfigProvider(Window *window) {
   window_single_click_subscribe(BUTTON_ID_BACK, mainWindowClickHandler);
 }
 
-static void mainWindowUpdateProc(Layer *this_layer, GContext *ctx) {
+static void mainWindowUpdateProc(Layer* this_layer, GContext *ctx) {
+
+    graphics_context_set_fill_color(ctx, s_colourBackground);
+    graphics_fill_rect(ctx, layer_get_bounds(this_layer), 0, GCornersAll);
+    graphics_context_set_fill_color(ctx, s_colourForground);
+    GRect L = s_liquid;
+    L.origin.y /= SUB_PIXEL;
+    graphics_fill_rect(ctx, L, 0, GCornersAll);
+    graphics_context_set_fill_color(ctx, s_colourBackground);
+    if (s_nWaves) {
+      for (int i = 0; i < s_nWaves; ++i) {
+        GRect W = s_wave[i];
+        W.origin.y /= SUB_PIXEL;
+        graphics_fill_rect(ctx, W, 0, GCornersAll);
+      }
+    }
+
+    GRect b = layer_get_bounds(this_layer);
+    GRect levelRect = GRect( ((b.size.w - BOARD_SIZE_X)/2), b.size.h - 15, PIECE_PIXELS, 15);
+    static char levelBuffer[5];
+    snprintf(levelBuffer, 5, "%i", s_score.level);
+    graphics_context_set_text_color(ctx, GColorBlack);
+    graphics_draw_text(ctx, levelBuffer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD), levelRect, GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+
+    GPoint lives = GPoint( b.size.w/2 - PIECE_PIXELS, b.size.h - 6);
+    for (int L=0; L<3; ++L) {
+      GColor in;
+      GColor out;
+      if (s_score.lives - L > 0) {
+        if (L == 0) { in = GColorMintGreen; out = GColorDarkGreen; }
+        else if (L == 1) { in = GColorRajah; out = GColorWindsorTan; }
+        else { in = GColorMelon; out = GColorDarkCandyAppleRed; }
+      } else {
+        in = GColorLightGray;
+        out = GColorDarkGray;
+      }
+      GPoint p = lives;
+      p.x += PIECE_PIXELS * L;
+      graphics_context_set_stroke_color(ctx, out);
+      graphics_context_set_fill_color(ctx, in);
+      graphics_context_set_stroke_width(ctx, 3);
+      graphics_fill_circle(ctx, p, 3);
+      graphics_draw_circle(ctx, p, 3);
+    }
 
 }
 
-static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
+static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
   graphics_context_set_antialiased(ctx, 0);
 
   // Fill back
@@ -743,9 +986,20 @@ static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
       int xy = XY(x,y);
       if (s_gameState == kFlashRemoved && s_pieces[xy].match != kUnmatched) {
         GColor highlight;
-        if      (s_pieces[xy].match == kMatchedOnce)  highlight = GColorYellow;
-        else if (s_pieces[xy].match == kMatchedTwice) highlight = GColorOrange;
-        else if (s_pieces[xy].match == kExploded)     highlight = GColorRed;
+        if      (s_pieces[xy].match == kMatchedOnce)  highlight = GColorLimerick;
+        else if (s_pieces[xy].match == kMatchedTwice) highlight = GColorWindsorTan;
+        else if (s_pieces[xy].match == kExploded)     {
+          highlight = GColorRoseVale;
+          if (s_bombLocation[ s_pieces[xy].colour ].x != -1) { // Draw explosion line
+            GPoint myCentre = GPoint( s_pieces[xy].loc.x / SUB_PIXEL, s_pieces[xy].loc.y / SUB_PIXEL ) ;
+            myCentre.x += PIECE_PIXELS/2;
+            myCentre.y += PIECE_PIXELS/2;
+            graphics_context_set_stroke_color(ctx, GColorRed);
+            graphics_context_set_stroke_width(ctx, 3);
+            graphics_draw_line(ctx, myCentre, s_bombLocation[ s_pieces[xy].colour ]);
+            graphics_context_set_stroke_width(ctx, 1);
+          }
+        }
         graphics_context_set_fill_color(ctx, highlight);
         graphics_fill_rect(ctx, GRect((s_pieces[xy].loc.x/SUB_PIXEL)+1, (s_pieces[xy].loc.y/SUB_PIXEL)+1, PIECE_PIXELS-1, PIECE_PIXELS-1), 0, GCornersAll);
       }
@@ -772,7 +1026,7 @@ static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
   }
 
   // Move Arrows
-  if (s_frame < ANIM_FPS/2 && s_gameState == kAwaitingDirection) {
+  if (s_frame < 20 && s_gameState == kAwaitingDirection) {
     graphics_context_set_fill_color(ctx, GColorWhite);
     for (int d = 0; d < N_CARDINAL; ++d) {
       gpath_move_to(s_arrows[d], GPoint(s_cursor.x * PIECE_PIXELS, s_cursor.y * PIECE_PIXELS));
@@ -782,11 +1036,19 @@ static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
   }
 
   // Cursor
-  if (s_modeAcc) {
+  if (s_score.tiltMode > 0) {
     graphics_context_set_fill_color(ctx, GColorWhite);
     graphics_context_set_stroke_color(ctx, GColorBlack);
     graphics_fill_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 3);
     graphics_draw_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 3);
+  }
+
+  // Next move
+  if (s_score.hintOn && s_availableMove.x != -1 && s_gameState == kIdle) {
+    graphics_context_set_stroke_color(ctx, GColorDarkCandyAppleRed);
+    graphics_context_set_stroke_width(ctx, 3);
+    graphics_draw_circle(ctx, GPoint(s_availableMove.x*PIECE_PIXELS + PIECE_PIXELS/2, s_availableMove.y*PIECE_PIXELS + PIECE_PIXELS/2), PIECE_PIXELS);
+    graphics_context_set_stroke_width(ctx, 1);
   }
 
   // Redo border
@@ -798,8 +1060,8 @@ static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
 static void data_handler(AccelData* data, uint32_t num_samples) {
 
   // Update
-  s_motionCursor.x += data[0].x/2;
-  s_motionCursor.y -= data[0].y/2;
+  s_motionCursor.x += data[0].x / s_score.tiltMode; // 0=off, 1=high, 2=low
+  s_motionCursor.y -= data[0].y / s_score.tiltMode;
 
   if (s_motionCursor.x < 0) s_motionCursor.x += BOARD_SIZE_X * SUB_PIXEL;
   else if (s_motionCursor.x > BOARD_SIZE_X * SUB_PIXEL) s_motionCursor.x -= BOARD_SIZE_X * SUB_PIXEL;
@@ -819,8 +1081,18 @@ static void data_handler(AccelData* data, uint32_t num_samples) {
 
 }
 
+void tiltMode(bool on) {
+  if (on) {
+    accel_data_service_subscribe(1, data_handler);
+    accel_service_set_sampling_rate(ACCEL_SAMPLING_25HZ);
+  } else{
+    accel_data_service_unsubscribe();
+  }
+}
+
 void mainWindowLoad(Window* parentWindow) {
   GRect b = layer_get_bounds( window_get_root_layer(parentWindow) );
+  s_windowSizeY = b.size.h - STATUS_BAR_LAYER_HEIGHT;
 
   s_statusBar = status_bar_layer_create();
   layer_add_child(window_get_root_layer(parentWindow), status_bar_layer_get_layer(s_statusBar));
@@ -852,16 +1124,37 @@ void mainWindowLoad(Window* parentWindow) {
   s_arrows[kS] = gpath_create(&shapeS);
   s_arrows[kW] = gpath_create(&shapeW);
 
-  int num_samples = 1;
-  accel_data_service_subscribe(num_samples, data_handler);
-  accel_service_set_sampling_rate(ACCEL_SAMPLING_25HZ);
+  s_wave[0] = GRect(0, b.size.h * SUB_PIXEL, b.size.w, 10);
+  s_wave[1] = GRect(0, b.size.h * SUB_PIXEL, b.size.w, 20);
+  s_wave[2] = GRect(0, b.size.h * SUB_PIXEL, b.size.w, 30);
+  s_liquid  = GRect(0, b.size.h * SUB_PIXEL, b.size.w, b.size.h); // TODO x2 for safety
+  s_nWaves = 0;
+  s_liquidEnd = s_windowSizeY * SUB_PIXEL;
+
+  s_levelColour[0] = GColorTiffanyBlue;
+  s_levelColour[1] = GColorMediumAquamarine;
+  s_levelColour[2] = GColorVividCerulean;
+  s_levelColour[3] = GColorSpringBud;
+  s_levelColour[4] = GColorBlueMoon;
+  s_levelColour[5] = GColorIcterine;
+  s_levelColour[6] = GColorChromeYellow;
+  s_levelColour[7] = GColorSunsetOrange;
+  s_levelColour[8] = GColorMelon;
+  s_levelColour[9] = GColorPurple;
+  s_levelColour[10] = GColorRichBrilliantLavender;
+  s_levelColour[11] = GColorLiberty;
+  s_levelColour[12] = GColorWhite;
+
+  newGame();
+
+  s_score.tiltMode = 1;
+  tiltMode( s_score.tiltMode );
 
   srand(0);
-  newGame();
+
   gameLoop(NULL);
 
 }
-
 
 void mainWindowUnload() {
   layer_destroy(s_boardLayer);
