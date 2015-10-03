@@ -626,7 +626,7 @@ void gameLoop(void* data) {
 
   // only if taking acceleromiter data
   redraw();
-  
+
   app_timer_register(ANIM_DELAY, gameLoop, NULL);
 }
 
@@ -773,8 +773,8 @@ static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
   // Cursor
   graphics_context_set_fill_color(ctx, GColorWhite);
   graphics_context_set_stroke_color(ctx, GColorBlack);
-  graphics_fill_circle(ctx, s_motionCursor, 5);
-  graphics_draw_circle(ctx, s_motionCursor, 5);
+  graphics_fill_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 5);
+  graphics_draw_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 5);
 
 
   // Redo border
