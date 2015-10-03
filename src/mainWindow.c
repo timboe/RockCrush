@@ -21,10 +21,10 @@ static int s_frame = 0;
 #define SUB_PIXEL 100
 
 #define BOARD_PIECES_X 9
-#if defined(PBL_RECT)
+//#if defined(PBL_RECT)
   #define BOARD_PIECES_Y 9
-#elif defined(PBL_ROUND)
-  #define BOARD_PIECES_Y 8
+//#elif defined(PBL_ROUND)
+//  #define BOARD_PIECES_Y 8
 #endif
 #define PIECE_PIXELS 15
 #define PIECE_SUB_PIXELS PIECE_PIXELS*SUB_PIXEL
@@ -784,10 +784,12 @@ static void data_handler(AccelData* data, uint32_t num_samples) {
   s_motionCursor.y += data[0].y;
 
   if (s_motionCursor.x < 0) s_motionCursor.x += BOARD_SIZE_X * SUB_PIXEL;
-  else if (s_motionCursor.x >= BOARD_SIZE_X * SUB_PIXEL) s_motionCursor.x -= BOARD_SIZE_X * SUB_PIXEL;
+  else if (s_motionCursor.x > BOARD_SIZE_X * SUB_PIXEL) s_motionCursor.x -= BOARD_SIZE_X * SUB_PIXEL;
 
   if (s_motionCursor.y < 0) s_motionCursor.y += BOARD_SIZE_Y * SUB_PIXEL;
-  else if (s_motionCursor.y >= BOARD_SIZE_Y * SUB_PIXEL) s_motionCursor.x -= BOARD_SIZE_Y * SUB_PIXEL;
+  else if (s_motionCursor.y > BOARD_SIZE_Y * SUB_PIXEL) s_motionCursor.y -= BOARD_SIZE_Y * SUB_PIXEL;
+
+  redraw();
 
 }
 
