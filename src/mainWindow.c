@@ -8,7 +8,7 @@ static Layer* s_boardLayer = NULL;
 static StatusBarLayer* s_statusBar = NULL;
 
 static GPoint s_cursor = {0,0};
-static GPoint s_motionCursor = {0,0};
+static GPoint s_motionCursor = {500,500};
 
 #define MS_IN_SEC 1000
 #define ANIM_FPS 25
@@ -675,10 +675,10 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
 
   } else {
 
-    if      (BUTTON_ID_UP == button && s_modeAcc == true ) --s_cursor.y;
-    else if (BUTTON_ID_UP == button && s_modeAcc == false) s_motionCursor.y -= PIECE_SUB_PIXELS;
-    else if (BUTTON_ID_SELECT == button && s_modeAcc == true)  ++s_cursor.x;
-    else if (BUTTON_ID_SELECT == button && s_modeAcc == false) s_motionCursor.x += PIECE_SUB_PIXELS;
+    if      (BUTTON_ID_UP == button && s_modeAcc == false) --s_cursor.y;
+    else if (BUTTON_ID_UP == button && s_modeAcc == true ) s_motionCursor.y -= PIECE_SUB_PIXELS;
+    else if (BUTTON_ID_SELECT == button && s_modeAcc == false)  ++s_cursor.x;
+    else if (BUTTON_ID_SELECT == button && s_modeAcc == true) s_motionCursor.x += PIECE_SUB_PIXELS;
     else if (BUTTON_ID_DOWN == button && s_gameState == kIdle) s_gameState = kAwaitingDirection;
     else if (BUTTON_ID_BACK == button) newGame();
     if (s_cursor.x >= BOARD_PIECES_X) s_cursor.x = 0;
@@ -799,8 +799,10 @@ static void data_handler(AccelData* data, uint32_t num_samples) {
   else if (s_motionCursor.y > BOARD_SIZE_Y * SUB_PIXEL) s_motionCursor.y -= BOARD_SIZE_Y * SUB_PIXEL;
 
   // Translate
-  s_cursor.x = s_motionCursor.x / PIECE_SUB_PIXELS;
-  s_cursor.y = s_motionCursor.y / PIECE_SUB_PIXELS;
+  s_cursor.x = s_motionCursor.x / (PIECE_SUB_PIXELS); //Note: quotes due to macro
+  s_cursor.y = s_motionCursor.y / (PIECE_SUB_PIXELS);
+
+  APP_LOG(APP_LOG_LEVEL_DEBUG,"MCursor: %i,%i. Cursor %i,%i", s_motionCursor.x, s_motionCursor.y, s_cursor.x, s_cursor.y);
 
 }
 
