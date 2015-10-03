@@ -33,7 +33,7 @@ static int s_frame = 0;
 #define BOARD_SIZE_Y BOARD_PIECES_Y*PIECE_PIXELS
 
 // max is 7
-#define N_PRIMARY_COLOURS 4
+#define N_PRIMARY_COLOURS 7
 #define N_COLOURS 10
 typedef enum {
   kNONE,
@@ -651,27 +651,31 @@ void newGame() {
   s_gameState = kSettleBoard;
 }
 
+/**  Called when a direction key is pressed when in SelectDirection mode
+ *   OR whenever a new cell is entered by the accelerometer
+ **/
+void checkSwitch(int x, int y) {
+  if (s_gameState != kAwaitingDirection) return;
+
+  // Check out of bounds (for button instagated)
+  if (y < 0 || y >= BOARD_PIECES_Y || x < 0 || x >= BOARD_PIECES_X) {
+    redraw();
+    return;
+  }
+
+  s_gameState = kCheckMove;
+}
+
 void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
   ButtonId button = click_recognizer_get_button_id(recognizer);
 
   if (s_gameState == kAwaitingDirection) {
 
-    s_switch.first = s_cursor;
-    if        (BUTTON_ID_UP     == button && s_cursor.y != 0) {
-      s_switch.second = GPoint(s_cursor.x, s_cursor.y - 1);
-    } else if (BUTTON_ID_SELECT == button && s_cursor.x != BOARD_PIECES_X - 1) {
-      s_switch.second = GPoint(s_cursor.x + 1, s_cursor.y);
-    } else if (BUTTON_ID_DOWN   == button && s_cursor.y != BOARD_PIECES_Y - 1) {
-      s_switch.second = GPoint(s_cursor.x, s_cursor.y + 1);
-    } else if (BUTTON_ID_BACK   == button && s_cursor.x != 0) {
-      s_switch.second = GPoint(s_cursor.x - 1, s_cursor.y);
-    } else {
-      APP_LOG(APP_LOG_LEVEL_DEBUG,"SWITCH DIRn INVALID");
-      s_gameState = kIdle; // Invalid
-      redraw();
-      return;
-    }
-    s_gameState = kCheckMove;
+    // Check the direction I just pressed
+    if      (BUTTON_ID_UP     == button) checkSwitch(s_cursor.x, s_cursor.y - 1);
+    else if (BUTTON_ID_SELECT == button) checkSwitch(s_cursor.x + 1, s_cursor.y);
+    else if (BUTTON_ID_DOWN   == button) checkSwitch(s_cursor.x, s_cursor.y + 1);
+    else if (BUTTON_ID_BACK   == button) checkSwitch(s_cursor.x - 1, s_cursor.y);
 
   } else {
 
@@ -679,8 +683,10 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
     else if (BUTTON_ID_UP == button && s_modeAcc == true ) s_motionCursor.y -= PIECE_SUB_PIXELS;
     else if (BUTTON_ID_SELECT == button && s_modeAcc == false)  ++s_cursor.x;
     else if (BUTTON_ID_SELECT == button && s_modeAcc == true) s_motionCursor.x += PIECE_SUB_PIXELS;
-    else if (BUTTON_ID_DOWN == button && s_gameState == kIdle) s_gameState = kAwaitingDirection;
-    else if (BUTTON_ID_BACK == button) newGame();
+    else if (BUTTON_ID_DOWN == button && s_gameState == kIdle) {
+      s_gameState = kAwaitingDirection;
+      s_switch.first = s_cursor;
+    } else if (BUTTON_ID_BACK == button) newGame();
     if (s_cursor.x >= BOARD_PIECES_X) s_cursor.x = 0;
     if (s_cursor.y < 0) s_cursor.y = BOARD_PIECES_Y - 1;
     redraw();
@@ -776,8 +782,8 @@ static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
   if (s_modeAcc) {
     graphics_context_set_fill_color(ctx, GColorWhite);
     graphics_context_set_stroke_color(ctx, GColorBlack);
-    graphics_fill_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 5);
-    graphics_draw_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 5);
+    graphics_fill_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 3);
+    graphics_draw_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 3);
   }
 
   // Redo border
@@ -789,8 +795,8 @@ static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
 static void data_handler(AccelData* data, uint32_t num_samples) {
 
   // Update
-  s_motionCursor.x += data[0].x/4;
-  s_motionCursor.y -= data[0].y/4;
+  s_motionCursor.x += data[0].x/3;
+  s_motionCursor.y -= data[0].y/3;
 
   if (s_motionCursor.x < 0) s_motionCursor.x += BOARD_SIZE_X * SUB_PIXEL;
   else if (s_motionCursor.x > BOARD_SIZE_X * SUB_PIXEL) s_motionCursor.x -= BOARD_SIZE_X * SUB_PIXEL;
@@ -798,11 +804,15 @@ static void data_handler(AccelData* data, uint32_t num_samples) {
   if (s_motionCursor.y < 0) s_motionCursor.y += BOARD_SIZE_Y * SUB_PIXEL;
   else if (s_motionCursor.y > BOARD_SIZE_Y * SUB_PIXEL) s_motionCursor.y -= BOARD_SIZE_Y * SUB_PIXEL;
 
+  GPoint before = s_cursor;
+
   // Translate
   s_cursor.x = s_motionCursor.x / (PIECE_SUB_PIXELS); //Note: quotes due to macro
   s_cursor.y = s_motionCursor.y / (PIECE_SUB_PIXELS);
 
-  APP_LOG(APP_LOG_LEVEL_DEBUG,"MCursor: %i,%i. Cursor %i,%i", s_motionCursor.x, s_motionCursor.y, s_cursor.x, s_cursor.y);
+  if (before.x != s_cursor.x || before.y != s_cursor.y) {
+    checkSwitch(s_cursor.x, s_cursor.y); // Check the square i just moved into
+  }
 
 }
 
