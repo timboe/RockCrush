@@ -663,6 +663,9 @@ void checkSwitch(int x, int y) {
     return;
   }
 
+  s_switch.second.x = x;
+  s_switch.second.y = y;
+
   s_gameState = kCheckMove;
 }
 
@@ -672,10 +675,10 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
   if (s_gameState == kAwaitingDirection) {
 
     // Check the direction I just pressed
-    if      (BUTTON_ID_UP     == button) checkSwitch(s_cursor.x, s_cursor.y - 1);
-    else if (BUTTON_ID_SELECT == button) checkSwitch(s_cursor.x + 1, s_cursor.y);
-    else if (BUTTON_ID_DOWN   == button) checkSwitch(s_cursor.x, s_cursor.y + 1);
-    else if (BUTTON_ID_BACK   == button) checkSwitch(s_cursor.x - 1, s_cursor.y);
+    if      (BUTTON_ID_UP     == button) checkSwitch(s_cursor.x    , s_cursor.y - 1);
+    else if (BUTTON_ID_SELECT == button) checkSwitch(s_cursor.x + 1, s_cursor.y    );
+    else if (BUTTON_ID_DOWN   == button) checkSwitch(s_cursor.x    , s_cursor.y + 1);
+    else if (BUTTON_ID_BACK   == button) checkSwitch(s_cursor.x - 1, s_cursor.y    );
 
   } else {
 
@@ -795,8 +798,8 @@ static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
 static void data_handler(AccelData* data, uint32_t num_samples) {
 
   // Update
-  s_motionCursor.x += data[0].x/3;
-  s_motionCursor.y -= data[0].y/3;
+  s_motionCursor.x += data[0].x/2;
+  s_motionCursor.y -= data[0].y/2;
 
   if (s_motionCursor.x < 0) s_motionCursor.x += BOARD_SIZE_X * SUB_PIXEL;
   else if (s_motionCursor.x > BOARD_SIZE_X * SUB_PIXEL) s_motionCursor.x -= BOARD_SIZE_X * SUB_PIXEL;
