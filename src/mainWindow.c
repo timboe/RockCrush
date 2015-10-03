@@ -280,8 +280,8 @@ void nudgeAnimate() {
   static int v = 0;
   static int mode = 0;
 
-  if (mode == 0 && v >= 50) mode = 1;
-  else if (mode == 1 && v <= -50) mode = 2;
+  if (mode == 0 && v >= 0) mode = 1;
+  else if (mode == 1 && v <= -70) mode = 2;
   else if (mode == 2 && v >= 0) mode = 3;
 
   if (mode == 0 || mode == 2) v += GRAVITY;
@@ -710,7 +710,7 @@ static void mainWindowUpdateProc(Layer *this_layer, GContext *ctx) {
 }
 
 static void boardUpdateProc(Layer *this_layer, GContext *ctx) {
-  graphics_context_set_antialiased(ctx, 1);
+  graphics_context_set_antialiased(ctx, 0);
 
   // Fill back
   graphics_context_set_fill_color(ctx, GColorLightGray);
