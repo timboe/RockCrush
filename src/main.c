@@ -12,7 +12,7 @@ static void init(void) {
     .unload = mainWindowUnload,
   });
   window_stack_push(s_mainWindow, true);
-  light_enable(1);
+  //light_enable(1);
 }
 
 static void deinit(void) {

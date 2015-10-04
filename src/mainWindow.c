@@ -226,22 +226,23 @@ void redraw() {
 // Two points per square in a match 4
 #define SCORE_4 6
 //Note this is bonus on top of two x SCORE_3's
-#define SCORE_T 9
+#define SCORE_T 3
 // Two points per square clearing a row/col
-#define SCORE_ROW 2*BOARD_PIECES_X
-#define SCORE_COLUMN 2*BOARD_PIECES_Y
+#define SCORE_ROW BOARD_PIECES_X
+#define SCORE_COLUMN BOARD_PIECES_Y
 // Two points _per exploded piece_
 #define SCORE_BOOM 2
 void score(MatchType_t type, int n) {
   int b4 = s_score.pointBuffer;
+  int M = (s_score.level + 1) / 2; // Bonuses are worth more in later levels
   switch (type) {
-    case kRow: s_score.pointBuffer += SCORE_COLUMN; break;
-    case kColumn: s_score.pointBuffer += SCORE_ROW; break;
-    case kCross: s_score.pointBuffer += (SCORE_ROW+SCORE_COLUMN); break;
-    case kBOOM: case kColourBoom: case kMiniBoom: s_score.pointBuffer += SCORE_BOOM * n; break;
-    case kMatch3: s_score.pointBuffer += SCORE_3; break;
-    case kMatch4: s_score.pointBuffer += SCORE_4; break;
-    case kMatchT: s_score.pointBuffer += SCORE_T; break;
+    case kRow: s_score.pointBuffer += SCORE_COLUMN * M; break;
+    case kColumn: s_score.pointBuffer += SCORE_ROW * M; break;
+    case kCross: s_score.pointBuffer += (SCORE_ROW+SCORE_COLUMN) * M; break;
+    case kBOOM: case kColourBoom: case kMiniBoom: s_score.pointBuffer += SCORE_BOOM * n * M; break;
+    case kMatch3: s_score.pointBuffer += SCORE_3 + M; break; // Note - plus - nerfed
+    case kMatch4: s_score.pointBuffer += SCORE_4 + M; break; // Note - plus - nerfed
+    case kMatchT: s_score.pointBuffer += SCORE_T * M; break;
   }
   APP_LOG(APP_LOG_LEVEL_INFO, "points enum %i scored %i", type, s_score.pointBuffer - b4);
 }
@@ -730,14 +731,14 @@ bool checkScoreBuffer() {
   if (s_score.pointBuffer == 0) return false;
 
   // Do we have a little or a lot of points to award?
-  if (s_score.pointBuffer >= s_score.pointsToNextLevel/5) s_nWaves = 3; // > 20%
+  if (s_score.pointBuffer >= s_score.pointsToNextLevel/10) s_nWaves = 3; // > 10%
   else if (s_score.pointBuffer >= s_score.pointsToNextLevel/20) s_nWaves = 2; // > 5%
   else if (s_score.pointBuffer >= s_score.pointsToNextLevel/100) s_nWaves = 1; // > 1 %
   else return false; // Not enough
 
   s_wave[0].origin.y = (s_windowSizeY) * SUB_PIXEL; //size 10
-  s_wave[1].origin.y = (s_windowSizeY + 20) * SUB_PIXEL; // gap 10, size 20
-  s_wave[2].origin.y = (s_windowSizeY + 50) * SUB_PIXEL; // gap 10, size 30
+  s_wave[1].origin.y = (s_windowSizeY + 20) * SUB_PIXEL; // gap 10, size 15
+  s_wave[2].origin.y = (s_windowSizeY + 45) * SUB_PIXEL; // gap 10, size 20
   s_waveV = 0;
 
   APP_LOG(APP_LOG_LEVEL_INFO, "buffer has: %i, tot points: %i, pointsToNextLevel: %i", s_score.pointBuffer, s_score.points, s_score.pointsToNextLevel );
@@ -770,7 +771,7 @@ bool applyPoints() {
 bool checkNewLevel() {
   if (s_score.points >= s_score.pointsToNextLevel) {
     s_score.points -= s_score.pointsToNextLevel;
-    s_score.pointsToNextLevel = (6 * s_score.pointsToNextLevel) / 5; //TODO balance this 6/5 = +20%
+    s_score.pointsToNextLevel = (23 * s_score.pointsToNextLevel) / 20; //TODO balance this 23/20 = +15%
     switch (++s_score.level) {
         case 3: s_score.nColoursActive = 6;
         case 6: s_score.nColoursActive = 7;
@@ -878,7 +879,7 @@ void newGame() {
   // Init score
   s_score.level = 1;
   s_score.lives = 3;
-  s_score.pointsToNextLevel = 300;
+  s_score.pointsToNextLevel = 200;
   s_score.nColoursActive = 5;
   s_colourForground = s_levelColour[ 1 ];
   s_colourBackground  = s_levelColour[ 0 ];
@@ -1130,8 +1131,8 @@ void mainWindowLoad(Window* parentWindow) {
   s_arrows[kW] = gpath_create(&shapeW);
 
   s_wave[0] = GRect(0, b.size.h * SUB_PIXEL, b.size.w, 10);
-  s_wave[1] = GRect(0, b.size.h * SUB_PIXEL, b.size.w, 20);
-  s_wave[2] = GRect(0, b.size.h * SUB_PIXEL, b.size.w, 30);
+  s_wave[1] = GRect(0, b.size.h * SUB_PIXEL, b.size.w, 15);
+  s_wave[2] = GRect(0, b.size.h * SUB_PIXEL, b.size.w, 20);
   s_liquid  = GRect(0, b.size.h * SUB_PIXEL, b.size.w, b.size.h); // TODO x2 for safety
   s_nWaves = 0;
   s_liquidEnd = s_windowSizeY * SUB_PIXEL;
