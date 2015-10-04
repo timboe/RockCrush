@@ -770,8 +770,11 @@ bool applyPoints() {
 bool checkNewLevel() {
   if (s_score.points >= s_score.pointsToNextLevel) {
     s_score.points -= s_score.pointsToNextLevel;
-    s_score.pointsToNextLevel *= 1; //TODO balance this
-    ++s_score.level;
+    s_score.pointsToNextLevel = (6 * s_score.pointsToNextLevel) / 5; //TODO balance this 6/5 = +20%
+    switch (++s_score.level) {
+        case 3: s_score.nColoursActive = 6;
+        case 6: s_score.nColoursActive = 7;
+    }
     int nextFG = s_score.level;
     int nextBG = s_score.level - 1;
     while (nextFG >= N_LEVEL_COLOURS) nextFG -= N_LEVEL_COLOURS;
@@ -875,8 +878,8 @@ void newGame() {
   // Init score
   s_score.level = 1;
   s_score.lives = 3;
-  s_score.pointsToNextLevel = 25;
-  s_score.nColoursActive = 4;
+  s_score.pointsToNextLevel = 300;
+  s_score.nColoursActive = 5;
   s_colourForground = s_levelColour[ 1 ];
   s_colourBackground  = s_levelColour[ 0 ];
   s_score.tiltMode = 1;
