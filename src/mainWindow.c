@@ -883,7 +883,7 @@ void newGame() {
   s_score.nColoursActive = 5;
   s_colourForground = s_levelColour[ 1 ];
   s_colourBackground  = s_levelColour[ 0 ];
-  s_score.tiltMode = 1;
+  s_score.tiltMode = 0;
   tiltMode( s_score.tiltMode );
   // Fill with colour
   int offset = BOARD_SIZE_Y * SUB_PIXEL;
