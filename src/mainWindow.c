@@ -733,7 +733,7 @@ bool checkScoreBuffer() {
   // Do we have a little or a lot of points to award?
   if (s_score.pointBuffer >= s_score.pointsToNextLevel/10) s_nWaves = 3; // > 10%
   else if (s_score.pointBuffer >= s_score.pointsToNextLevel/20) s_nWaves = 2; // > 5%
-  else if (s_score.pointBuffer >= s_score.pointsToNextLevel/100) s_nWaves = 1; // > 1 %
+  else if (s_score.pointBuffer >= s_score.pointsToNextLevel/50) s_nWaves = 1; // > 2 %
   else return false; // Not enough
 
   s_wave[0].origin.y = (s_windowSizeY) * SUB_PIXEL; //size 10
@@ -773,8 +773,9 @@ bool checkNewLevel() {
     s_score.points -= s_score.pointsToNextLevel;
     s_score.pointsToNextLevel = (23 * s_score.pointsToNextLevel) / 20; //TODO balance this 23/20 = +15%
     switch (++s_score.level) {
-        case 3: s_score.nColoursActive = 6;
-        case 6: s_score.nColoursActive = 7;
+        case 3: s_score.nColoursActive = 6; break;
+        case 6: s_score.nColoursActive = 7; break;
+        default: break;
     }
     int nextFG = s_score.level;
     int nextBG = s_score.level - 1;
