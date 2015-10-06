@@ -3,3 +3,5 @@
 
 void splashWindowLoad(Window *window);
 void splashWindowUnload();
+
+void splashWindowClickConfigProvider(Window *window);
