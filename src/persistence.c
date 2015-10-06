@@ -89,3 +89,12 @@ void endGame() {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "END: wrote score:%i bytes", score);
   gameSaved = false;
 }
+
+void reset() {
+  if (persist_exists(KEY_HINT)) persist_delete(KEY_HINT);
+  if (persist_exists(KEY_BACKLIGHT)) persist_delete(KEY_BACKLIGHT);
+  if (persist_exists(KEY_TILT)) persist_delete(KEY_TILT);
+  if (persist_exists(KEY_BOARD)) persist_delete(KEY_BOARD);
+  if (persist_exists(KEY_SCORE)) persist_delete(KEY_SCORE);
+  initPersistence();
+}

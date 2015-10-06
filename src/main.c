@@ -26,8 +26,8 @@ static void init(void) {
   });
 
   initGlobals();
-  initPersistence();
-
+  //initPersistence();
+  reset();
 }
 
 static void deinit(void) {

@@ -17,3 +17,4 @@ void setTiltStatus(int i);
 void loadGame();
 void saveGame();
 void endGame();
+void reset();
