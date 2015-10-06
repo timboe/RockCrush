@@ -231,7 +231,7 @@ void splashWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
   else if (BUTTON_ID_SELECT == button) {
     switch (s_selectedMenuItem) {
       case 0: newGame(true); pushMainWindow(); break;
-      case 1: newGame(false); pushMainWindow(); break;
+      case 1: APP_LOG(APP_LOG_LEVEL_WARNING,"A"); newGame(false); APP_LOG(APP_LOG_LEVEL_WARNING,"F"); pushMainWindow(); break;
       case 2: setTiltStatus( getTiltStatus() + 1 ); break;
       case 3: setBacklightStatus( getBacklightStatus() + 1 ); break;
       case 4: setHintStatus( getHintStatus() + 1 ); break;

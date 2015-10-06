@@ -723,6 +723,7 @@ void tiltMode() {
 void newGame(bool doLoadGame) {
   // Zero data store
   // Keep the best level data
+  APP_LOG(APP_LOG_LEVEL_WARNING,"B");
   memset(&s_pieces, 0, BOARD_PIECES_X * BOARD_PIECES_Y * sizeof(Piece_t));
   memset(&s_score, 0, sizeof(Score_t));
   if (doLoadGame == true) {
@@ -738,6 +739,7 @@ void newGame(bool doLoadGame) {
     s_colourForground = s_levelColour[ 1 ];
     s_colourBackground  = s_levelColour[ 0 ];
   }
+  APP_LOG(APP_LOG_LEVEL_WARNING,"C");
   int offset = BOARD_SIZE_Y * SUB_PIXEL;
   for (int y = BOARD_PIECES_Y-1; y >= 0; --y) {
     for (int x = 0; x < BOARD_PIECES_X; ++x) {
@@ -753,9 +755,11 @@ void newGame(bool doLoadGame) {
     }
     offset += PIECE_SUB_PIXELS;// + (rand() % PIECE_SUB_PIXELS);
   }
+  APP_LOG(APP_LOG_LEVEL_WARNING,"D");
   tiltMode();
   s_scoreState = kWait;
   s_gameState = kSettleBoard;
+  APP_LOG(APP_LOG_LEVEL_WARNING,"E");
 }
 
 void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {

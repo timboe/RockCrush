@@ -37,8 +37,11 @@ static void deinit(void) {
 }
 
 void pushMainWindow() {
+  APP_LOG(APP_LOG_LEVEL_WARNING,"G");
   window_stack_pop(true);
+  APP_LOG(APP_LOG_LEVEL_WARNING,"H");
   window_stack_push(s_mainWindow, true);
+  APP_LOG(APP_LOG_LEVEL_WARNING,"I");
 }
 
 void pushSplashWindow() {
