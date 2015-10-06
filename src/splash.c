@@ -154,21 +154,21 @@ void tick(void* data) {
   s_tickTimer = app_timer_register(ANIM_DELAY, tick, NULL);
 
   if (++s_frame == ANIM_FPS) s_frame = 0;
-  static int v = 500;
+  static int v = 0;
 
   int desiredOffset = s_selectedMenuItem * 50 * SUB_PIXEL;
 
 //APP_LOG(APP_LOG_LEVEL_DEBUG, "desired %i current %i", desiredOffset/100, s_textOff/100 );
 
   if (desiredOffset < s_textOff) {
-    v += GRAVITY * 2;
+    v += GRAVITY * 10;
     s_textOff -= v;
-    if (desiredOffset >= s_textOff) { v=500; s_textOff = desiredOffset;}
+    if (desiredOffset >= s_textOff) { v=0; s_textOff = desiredOffset;}
     redraw();
   } else if (desiredOffset > s_textOff) {
-    v += GRAVITY * 2;
+    v += GRAVITY * 10;
     s_textOff += v;
-    if (desiredOffset <= s_textOff) { v=500; s_textOff = desiredOffset; }
+    if (desiredOffset <= s_textOff) { v=0; s_textOff = desiredOffset; }
     redraw();
   }
 
