@@ -637,10 +637,12 @@ bool gameOver() {
 }
 
 void gameLoop(void* data) {
-  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP s");
+  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP a");
   if (++s_frame == ANIM_FPS) s_frame = 0;
 
   bool requestRedraw = false;
+
+  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP b");
 
   switch (s_gameState) {
     case kIdle: break;
@@ -656,6 +658,7 @@ void gameLoop(void* data) {
     case kGameOver: requestRedraw = gameOver(); break;
     default: break;
   }
+  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP c");
 
   switch (s_scoreState) {
     case kWait: requestRedraw |= checkScoreBuffer(); break;
@@ -663,12 +666,16 @@ void gameLoop(void* data) {
     case kCheckNewLevel: requestRedraw |= checkNewLevel(); break;
     default: break;
   }
+  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP d");
 
   // only if taking acceleromiter data do we ALWAY redraw
   if (getTiltStatus() > 0 || requestRedraw == true) redraw();
+  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP e");
 
   if (s_frame % 100 == 0)  APP_LOG(APP_LOG_LEVEL_DEBUG, "game looping still");
   s_gameLoopTime = app_timer_register(ANIM_DELAY, gameLoop, NULL);
+  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP f");
+
 }
 
 /**  Called when a direction key is pressed when in SelectDirection mode

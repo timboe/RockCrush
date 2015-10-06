@@ -151,6 +151,8 @@ static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
 }
 
 void tick(void* data) {
+  s_tickTimer = app_timer_register(ANIM_DELAY, tick, NULL);
+
   if (++s_frame == ANIM_FPS) s_frame = 0;
   static int v = 500;
 
@@ -171,7 +173,6 @@ void tick(void* data) {
   }
 
   if (s_frame % 100 == 0) APP_LOG(APP_LOG_LEVEL_DEBUG, "ticking still");
-  s_tickTimer = app_timer_register(ANIM_DELAY, tick, NULL);
 }
 
 void scrollUpdateProc(Layer* thisLayer, GContext *ctx) {
