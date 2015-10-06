@@ -8,8 +8,8 @@
 static GRect s_wave[3];
 static int s_waveV = 0;
 static GRect s_liquid;
-static GColor s_colourBackground;
-static GColor s_colourForground;
+static int s_colourBackground;
+static int s_colourForground;
 static int s_nWaves = 0;
 static int s_liquidEnd = 0;
 static int s_windowSizeY = 0;
@@ -38,9 +38,7 @@ static int s_currentRun;
 static GameState_t s_gameState = kIdle; // Game FSM
 static ScoreState_t s_scoreState = kWait;
 
-
 #define N_LEVEL_COLOURS 13
-static GColor s_levelColour[N_LEVEL_COLOURS];
 
 Score_t* getScore() { return &s_score; };
 Piece_t* getPiece() { return &s_pieces[0]; }
@@ -605,12 +603,11 @@ bool applyPoints() {
 }
 
 void updateLevelColour() {
-  int nextFG = s_score.level;
-  int nextBG = s_score.level - 1;
-  while (nextFG >= N_LEVEL_COLOURS) nextFG -= N_LEVEL_COLOURS;
-  while (nextBG >= N_LEVEL_COLOURS) nextBG -= N_LEVEL_COLOURS;
-  s_colourForground = s_levelColour[ nextFG ];
-  s_colourBackground  = s_levelColour[ nextBG ];
+  int s_colourForground = s_score.level;
+  int s_colourBackground = s_score.level - 1;
+  while (s_colourForground >= N_LEVEL_COLOURS) s_colourForground -= N_LEVEL_COLOURS;
+  while (s_colourBackground >= N_LEVEL_COLOURS) s_colourBackground -= N_LEVEL_COLOURS;
+  APP_LOG(APP_LOG_LEVEL_INFO, "Updated colours %i %i", s_colourForground, s_colourBackground);
 }
 
 bool checkNewLevel() {
@@ -673,7 +670,7 @@ void gameLoop(void* data) {
   APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP e");
 
   if (s_frame % 100 == 0)  APP_LOG(APP_LOG_LEVEL_DEBUG, "game looping still");
-  s_gameLoopTime = app_timer_register(ANIM_DELAY, gameLoop, NULL);
+  //s_gameLoopTime = app_timer_register(ANIM_DELAY, gameLoop, NULL);
   APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP f");
 
 }
@@ -736,7 +733,6 @@ void newGame(bool doLoadGame) {
   memset(&s_score, 0, sizeof(Score_t));
   if (doLoadGame == true) {
     loadGame();
-    updateLevelColour();
   } else { // new game
     // Init score
     s_score.level = 1;
@@ -744,9 +740,8 @@ void newGame(bool doLoadGame) {
     s_score.lives = 3;
     s_score.pointsToNextLevel = 200;
     s_score.nColoursActive = 5;
-    s_colourForground = s_levelColour[ 1 ];
-    s_colourBackground  = s_levelColour[ 0 ];
   }
+  updateLevelColour();
   APP_LOG(APP_LOG_LEVEL_WARNING,"C");
   int offset = BOARD_SIZE_Y * SUB_PIXEL;
   for (int y = BOARD_PIECES_Y-1; y >= 0; --y) {
@@ -810,15 +805,36 @@ void mainWindowClickConfigProvider(Window *window) {
   window_single_click_subscribe(BUTTON_ID_BACK, mainWindowClickHandler);
 }
 
-static void mainWindowUpdateProc(Layer* this_layer, GContext *ctx) {
+void setFillColour(GContext *ctx, int i) {
+  switch (i) {
+    case 0: graphics_context_set_fill_color(ctx, GColorTiffanyBlue); break;
+    case 1: graphics_context_set_fill_color(ctx, GColorMediumAquamarine); break;
+    case 2: graphics_context_set_fill_color(ctx, GColorVividCerulean); break;
+    case 3: graphics_context_set_fill_color(ctx, GColorSpringBud); break;
+    case 4: graphics_context_set_fill_color(ctx, GColorBlueMoon); break;
+    case 5: graphics_context_set_fill_color(ctx, GColorYellow); break;
+    case 6: graphics_context_set_fill_color(ctx, GColorChromeYellow); break;
+    case 7: graphics_context_set_fill_color(ctx, GColorSunsetOrange); break;
+    case 8: graphics_context_set_fill_color(ctx, GColorMelon); break;
+    case 9: graphics_context_set_fill_color(ctx, GColorPurple); break;
+    case 10: graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender); break;
+    case 11: graphics_context_set_fill_color(ctx, GColorLiberty); break;
+    case 12: graphics_context_set_fill_color(ctx, GColorWhite); break;
+    default: graphics_context_set_fill_color(ctx, GColorRed); break;
+  }
+}
 
-    graphics_context_set_fill_color(ctx, s_colourBackground);
+static void mainWindowUpdateProc(Layer* this_layer, GContext *ctx) {
+   APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW back s, BGColor correct? %i", s_colourBackground);
+
+
+    setFillColour(ctx, s_colourBackground);
     graphics_fill_rect(ctx, layer_get_bounds(this_layer), 0, GCornersAll);
-    graphics_context_set_fill_color(ctx, s_colourForground);
+    setFillColour(ctx, s_colourForground);
     GRect L = s_liquid;
     L.origin.y /= SUB_PIXEL;
     graphics_fill_rect(ctx, L, 0, GCornersAll);
-    graphics_context_set_fill_color(ctx, s_colourBackground);
+    setFillColour(ctx, s_colourBackground);
     if (s_nWaves) {
       for (int i = 0; i < s_nWaves; ++i) {
         GRect W = s_wave[i];
@@ -854,10 +870,13 @@ static void mainWindowUpdateProc(Layer* this_layer, GContext *ctx) {
       graphics_fill_circle(ctx, p, 3);
       graphics_draw_circle(ctx, p, 3);
     }
+    APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW back e");
 
 }
 
 static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
+  APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW board s");
+
   graphics_context_set_antialiased(ctx, 0);
 
   // Fill back
@@ -893,18 +912,7 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
         GColor highlight;
         if      (s_pieces[xy].match == kMatchedOnce)  highlight = GColorRajah;
         else if (s_pieces[xy].match == kMatchedTwice) highlight = GColorWindsorTan;
-        else if (s_pieces[xy].match == kExploded)     {
-          highlight = GColorRoseVale;
-          //if (s_bombLocation[ s_pieces[xy].colour ].x != -1) { // Draw explosion line
-          //  GPoint myCentre = GPoint( s_pieces[xy].loc.x / SUB_PIXEL, s_pieces[xy].loc.y / SUB_PIXEL ) ;
-          //  myCentre.x += PIECE_PIXELS/2;
-          //  myCentre.y += PIECE_PIXELS/2;
-          //  graphics_context_set_stroke_color(ctx, GColorRed);
-          //  graphics_context_set_stroke_width(ctx, 3);
-          //  graphics_draw_line(ctx, myCentre, s_bombLocation[ s_pieces[xy].colour ]);
-          //  graphics_context_set_stroke_width(ctx, 1);
-          //}
-        }
+        else if (s_pieces[xy].match == kExploded)     highlight = GColorRoseVale;
         graphics_context_set_fill_color(ctx, highlight);
         graphics_fill_rect(ctx, GRect((s_pieces[xy].loc.x/SUB_PIXEL)+1, (s_pieces[xy].loc.y/SUB_PIXEL)+1, PIECE_PIXELS-1, PIECE_PIXELS-1), 0, GCornersAll);
       }
@@ -960,6 +968,7 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
   // Redo border
   graphics_context_set_stroke_color(ctx, GColorBlack);
   graphics_draw_rect(ctx, GRect(0, 0, BOARD_SIZE_X+1, BOARD_SIZE_Y+1));
+  APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW board e");
 
 }
 
@@ -991,19 +1000,7 @@ void mainWindowLoad(Window* parentWindow) {
   s_nWaves = 0;
   s_liquidEnd = s_windowSizeY * SUB_PIXEL;
   APP_LOG(APP_LOG_LEVEL_WARNING,"L");
-  s_levelColour[0] = GColorTiffanyBlue;
-  s_levelColour[1] = GColorMediumAquamarine;
-  s_levelColour[2] = GColorVividCerulean;
-  s_levelColour[3] = GColorSpringBud;
-  s_levelColour[4] = GColorBlueMoon;
-  s_levelColour[5] = GColorYellow;
-  s_levelColour[6] = GColorChromeYellow;
-  s_levelColour[7] = GColorSunsetOrange;
-  s_levelColour[8] = GColorMelon;
-  s_levelColour[9] = GColorPurple;
-  s_levelColour[10] = GColorRichBrilliantLavender;
-  s_levelColour[11] = GColorLiberty;
-  s_levelColour[12] = GColorWhite;
+
   APP_LOG(APP_LOG_LEVEL_WARNING,"M");
   s_currentRun = 0;
   s_switch.first = GPoint(-1,-1);
