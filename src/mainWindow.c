@@ -637,6 +637,7 @@ bool gameOver() {
 }
 
 void gameLoop(void* data) {
+  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP s");
   if (++s_frame == ANIM_FPS) s_frame = 0;
 
   bool requestRedraw = false;
@@ -956,6 +957,7 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
 }
 
 void mainWindowLoad(Window* parentWindow) {
+  APP_LOG(APP_LOG_LEVEL_WARNING,"J");
   GRect b = layer_get_bounds( window_get_root_layer(parentWindow) );
   s_windowSizeY = b.size.h - STATUS_BAR_LAYER_HEIGHT;
 
@@ -968,7 +970,7 @@ void mainWindowLoad(Window* parentWindow) {
   layer_set_update_proc(s_mainWindowLayer, mainWindowUpdateProc);
 
   int disp = (b.size.w - BOARD_SIZE_X) / 2;
-
+  APP_LOG(APP_LOG_LEVEL_WARNING,"K");
   s_boardLayer = layer_create( GRect(disp, disp, BOARD_SIZE_X + 1, BOARD_SIZE_Y + 1) );
   layer_add_child(s_mainWindowLayer, s_boardLayer);
   layer_set_update_proc(s_boardLayer, boardUpdateProc);
@@ -981,7 +983,7 @@ void mainWindowLoad(Window* parentWindow) {
   s_liquid  = GRect(0, b.size.h * SUB_PIXEL, b.size.w, b.size.h); // TODO x2 for safety
   s_nWaves = 0;
   s_liquidEnd = s_windowSizeY * SUB_PIXEL;
-
+  APP_LOG(APP_LOG_LEVEL_WARNING,"L");
   s_levelColour[0] = GColorTiffanyBlue;
   s_levelColour[1] = GColorMediumAquamarine;
   s_levelColour[2] = GColorVividCerulean;
@@ -995,16 +997,18 @@ void mainWindowLoad(Window* parentWindow) {
   s_levelColour[10] = GColorRichBrilliantLavender;
   s_levelColour[11] = GColorLiberty;
   s_levelColour[12] = GColorWhite;
-
+  APP_LOG(APP_LOG_LEVEL_WARNING,"M");
   s_currentRun = 0;
   s_switch.first = GPoint(-1,-1);
   s_switch.second = GPoint(-1,-1);
   s_cursor = GPoint(0,0);
   s_motionCursor = GPoint(PIECE_SUB_PIXELS/2,PIECE_SUB_PIXELS/2);
   s_availableMove = GPoint(-1,-1);
-
+  APP_LOG(APP_LOG_LEVEL_WARNING,"N");
   srand(time(NULL));
+  APP_LOG(APP_LOG_LEVEL_WARNING,"O");
   gameLoop(NULL);
+  APP_LOG(APP_LOG_LEVEL_WARNING,"P");
 
 }
 
