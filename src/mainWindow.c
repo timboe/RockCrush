@@ -501,7 +501,7 @@ bool settleBoard() {
     for (int y=0; y < BOARD_PIECES_Y; ++y) {
       int floor = y * PIECE_PIXELS * SUB_PIXEL;
       if (s_pieces[XY(x,y)].loc.y < floor) {
-        if (s_pieces[XY(x,y)].v == 0) s_pieces[XY(x,y)].v = 80; // TWEEk and make get larger as run progresses?
+        if (s_pieces[XY(x,y)].v == 0) s_pieces[XY(x,y)].v = PIECE_PIXELS * s_currentRun; // TWEEk and make get larger as run progresses?
         s_pieces[XY(x,y)].v += GRAVITY;
         s_pieces[XY(x,y)].loc.y += s_pieces[XY(x,y)].v;
         settled = false;
@@ -1015,9 +1015,8 @@ void mainWindowLoad(Window* parentWindow) {
   //APP_LOG(APP_LOG_LEVEL_WARNING,"N");
   srand(time(NULL));
   //APP_LOG(APP_LOG_LEVEL_WARNING,"O");
-  gameLoop(NULL);
   //APP_LOG(APP_LOG_LEVEL_WARNING,"P");
-
+  startGameTick();
 }
 
 void mainWindowUnload() {
@@ -1030,9 +1029,17 @@ void mainWindowUnload() {
   s_boardLayer = NULL;
   s_mainWindowLayer = NULL;
   s_statusBar = NULL;
+  stopGameTick();
+  accel_data_service_unsubscribe();
+}
+
+void startGameTick() {
+  gameLoop(NULL);
+}
+
+void stopGameTick() {
   if (s_gameLoopTime) app_timer_cancel(s_gameLoopTime);
   s_gameLoopTime = NULL;
   if (s_hintTimer) app_timer_cancel(s_hintTimer);
   s_hintTimer = NULL;
-  accel_data_service_unsubscribe();
 }

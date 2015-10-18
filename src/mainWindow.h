@@ -11,3 +11,6 @@ Score_t* getScore();
 Piece_t* getPiece();
 
 void newGame(bool doLoadGame);
+
+void startGameTick();
+void stopGameTick();
