@@ -2,7 +2,7 @@
 #include <pebble.h>
 
 #define MS_IN_SEC 1000
-#define ANIM_FPS 60
+#define ANIM_FPS 30
 #define ANIM_FRAMES ANIM_FPS*ANIM_DURATION
 #define ANIM_DELAY MS_IN_SEC/ANIM_FPS
 #define GRAVITY 20

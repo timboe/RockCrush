@@ -669,8 +669,8 @@ void gameLoop(void* data) {
   if (getTiltStatus() > 0 || requestRedraw == true) redraw();
   //APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP e");
 
-  if (s_frame % 100 == 0)  APP_LOG(APP_LOG_LEVEL_DEBUG, "game looping still");
-  //s_gameLoopTime = app_timer_register(ANIM_DELAY, gameLoop, NULL);
+  if (s_frame % 1000 == 0)  APP_LOG(APP_LOG_LEVEL_DEBUG, "game looping still");
+  s_gameLoopTime = app_timer_register(ANIM_DELAY, gameLoop, NULL);
   //APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP f");
 
 }

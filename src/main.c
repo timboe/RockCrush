@@ -46,7 +46,7 @@ void pushMainWindow() {
 }
 
 void pushSplashWindow() {
-  window_stack_pop(false);
+  window_stack_remove(s_mainWindow, false);
   startSplashTick();
   //window_stack_push(s_splashWindow, true);
 }
