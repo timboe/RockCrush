@@ -279,11 +279,18 @@ void splashWindowLoad(Window* parentWindow) {
   s_selectedMenuItem = getGameInProgress() ? 0 : 1;
   s_textOff =  s_selectedMenuItem * 50 * SUB_PIXEL;
 
-  tick(NULL);
+  startSplashTick();
 
 }
 
+void startSplashTick() {
+  tick(NULL);
+}
 
+void stopSplashTick() {
+  if (s_tickTimer) app_timer_cancel(s_tickTimer);
+  s_tickTimer = NULL;
+}
 
 void splashWindowUnload() {
   layer_destroy(s_scrollLayer);
@@ -296,6 +303,5 @@ void splashWindowUnload() {
     free(s_textMain[i]);
     free(s_textSub[i]);
   }
-  if (s_tickTimer) app_timer_cancel(s_tickTimer);
-  s_tickTimer = NULL;
+  stopSplashTick();
 }

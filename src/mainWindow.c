@@ -634,12 +634,12 @@ bool gameOver() {
 }
 
 void gameLoop(void* data) {
-  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP a");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP a");
   if (++s_frame == ANIM_FPS) s_frame = 0;
 
   bool requestRedraw = false;
 
-  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP b");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP b");
 
   switch (s_gameState) {
     case kIdle: break;
@@ -655,7 +655,7 @@ void gameLoop(void* data) {
     case kGameOver: requestRedraw = gameOver(); break;
     default: break;
   }
-  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP c");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP c");
 
   switch (s_scoreState) {
     case kWait: requestRedraw |= checkScoreBuffer(); break;
@@ -663,15 +663,15 @@ void gameLoop(void* data) {
     case kCheckNewLevel: requestRedraw |= checkNewLevel(); break;
     default: break;
   }
-  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP d");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP d");
 
   // only if taking acceleromiter data do we ALWAY redraw
   if (getTiltStatus() > 0 || requestRedraw == true) redraw();
-  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP e");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP e");
 
   if (s_frame % 100 == 0)  APP_LOG(APP_LOG_LEVEL_DEBUG, "game looping still");
   //s_gameLoopTime = app_timer_register(ANIM_DELAY, gameLoop, NULL);
-  APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP f");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP f");
 
 }
 
@@ -694,7 +694,7 @@ void checkSwitch(int x, int y) {
 }
 
 static void dataHandler(AccelData* data, uint32_t num_samples) {
-  APP_LOG(APP_LOG_LEVEL_WARNING,"gotTilt");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"gotTilt");
   // Update
   s_motionCursor.x += data[0].x / getTiltStatus(); // 0=off, 1=high, 2=low
   s_motionCursor.y -= data[0].y / getTiltStatus();
@@ -719,7 +719,7 @@ static void dataHandler(AccelData* data, uint32_t num_samples) {
 
 void tiltMode() {
   if (getTiltStatus() > 0) {
-    APP_LOG(APP_LOG_LEVEL_WARNING,"tiltOn");
+    //APP_LOG(APP_LOG_LEVEL_WARNING,"tiltOn");
     accel_data_service_subscribe(1, dataHandler);
     accel_service_set_sampling_rate(ACCEL_SAMPLING_25HZ);
   } else{
@@ -730,7 +730,7 @@ void tiltMode() {
 void newGame(bool doLoadGame) {
   // Zero data store
   // Keep the best level data
-  APP_LOG(APP_LOG_LEVEL_WARNING,"B");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"B");
   memset(&s_pieces, 0, BOARD_PIECES_X * BOARD_PIECES_Y * sizeof(Piece_t));
   memset(&s_score, 0, sizeof(Score_t));
   if (doLoadGame == true) {
@@ -744,7 +744,7 @@ void newGame(bool doLoadGame) {
     s_score.nColoursActive = 5;
   }
   updateLevelColour();
-  APP_LOG(APP_LOG_LEVEL_WARNING,"C");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"C");
   int offset = BOARD_SIZE_Y * SUB_PIXEL;
   for (int y = BOARD_PIECES_Y-1; y >= 0; --y) {
     for (int x = 0; x < BOARD_PIECES_X; ++x) {
@@ -760,11 +760,11 @@ void newGame(bool doLoadGame) {
     }
     offset += PIECE_SUB_PIXELS;// + (rand() % PIECE_SUB_PIXELS);
   }
-  APP_LOG(APP_LOG_LEVEL_WARNING,"D");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"D");
   tiltMode();
   s_scoreState = kWait;
   s_gameState = kSettleBoard;
-  APP_LOG(APP_LOG_LEVEL_WARNING,"E");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"E");
 }
 
 void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
@@ -789,7 +789,6 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
       s_gameState = kAwaitingDirection;
       s_switch.first = s_cursor;
     } else if (BUTTON_ID_BACK == button) {
-
       pushSplashWindow();
     }
 
@@ -801,7 +800,7 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
 }
 
 void mainWindowClickConfigProvider(Window *window) {
-  APP_LOG(APP_LOG_LEVEL_WARNING,"mainWSetClickProv");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"mainWSetClickProv");
   window_single_repeating_click_subscribe(BUTTON_ID_SELECT, 100, mainWindowClickHandler);
   window_single_repeating_click_subscribe(BUTTON_ID_UP, 100, mainWindowClickHandler);
   window_single_click_subscribe(BUTTON_ID_DOWN, mainWindowClickHandler);
@@ -828,157 +827,157 @@ void setFillColour(GContext *ctx, int i) {
 }
 
 static void mainWindowUpdateProc(Layer* this_layer, GContext *ctx) {
-   APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW back s, BGColor correct? %i", s_colourBackground);
+   //APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW back s, BGColor correct? %i", s_colourBackground);
 
 
-    //setFillColour(ctx, s_colourBackground);
-    //graphics_fill_rect(ctx, layer_get_bounds(this_layer), 0, GCornersAll);
+    setFillColour(ctx, s_colourBackground);
+    graphics_fill_rect(ctx, layer_get_bounds(this_layer), 0, GCornersAll);
 
-    //
-    // setFillColour(ctx, s_colourForground);
-    // GRect L = s_liquid;
-    // L.origin.y /= SUB_PIXEL;
-    // graphics_fill_rect(ctx, L, 0, GCornersAll);
-    // setFillColour(ctx, s_colourBackground);
-    // if (s_nWaves) {
-    //   for (int i = 0; i < s_nWaves; ++i) {
-    //     GRect W = s_wave[i];
-    //     W.origin.y /= SUB_PIXEL;
-    //     graphics_fill_rect(ctx, W, 0, GCornersAll);
-    //   }
-    // }
-    //
-    // GRect b = layer_get_bounds(this_layer);
-    // GRect levelRect = GRect( ((b.size.w - BOARD_SIZE_X)/2), b.size.h - 15, PIECE_PIXELS, 15);
-    // static char levelBuffer[5];
-    // snprintf(levelBuffer, 5, "%i", s_score.level);
-    // graphics_context_set_text_color(ctx, GColorBlack);
-    // graphics_draw_text(ctx, levelBuffer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD), levelRect, GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
-    //
-    // GPoint lives = GPoint( b.size.w/2 - PIECE_PIXELS, b.size.h - 6);
-    // for (int L=0; L<3; ++L) {
-    //   GColor in;
-    //   GColor out;
-    //   if (s_score.lives - L > 0) {
-    //     if (L == 0) { in = GColorMintGreen; out = GColorDarkGreen; }
-    //     else if (L == 1) { in = GColorRajah; out = GColorWindsorTan; }
-    //     else { in = GColorMelon; out = GColorDarkCandyAppleRed; }
-    //   } else {
-    //     in = GColorLightGray;
-    //     out = GColorDarkGray;
-    //   }
-    //   GPoint p = lives;
-    //   p.x += PIECE_PIXELS * L;
-    //   graphics_context_set_stroke_color(ctx, out);
-    //   graphics_context_set_fill_color(ctx, in);
-    //   graphics_context_set_stroke_width(ctx, 3);
-    //   graphics_fill_circle(ctx, p, 3);
-    //   graphics_draw_circle(ctx, p, 3);
-    // }
-    APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW back e");
+
+    setFillColour(ctx, s_colourForground);
+    GRect L = s_liquid;
+    L.origin.y /= SUB_PIXEL;
+    graphics_fill_rect(ctx, L, 0, GCornersAll);
+    setFillColour(ctx, s_colourBackground);
+    if (s_nWaves) {
+      for (int i = 0; i < s_nWaves; ++i) {
+        GRect W = s_wave[i];
+        W.origin.y /= SUB_PIXEL;
+        graphics_fill_rect(ctx, W, 0, GCornersAll);
+      }
+    }
+
+    GRect b = layer_get_bounds(this_layer);
+    GRect levelRect = GRect( ((b.size.w - BOARD_SIZE_X)/2), b.size.h - 15, PIECE_PIXELS, 15);
+    static char levelBuffer[5];
+    snprintf(levelBuffer, 5, "%i", s_score.level);
+    graphics_context_set_text_color(ctx, GColorBlack);
+    graphics_draw_text(ctx, levelBuffer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD), levelRect, GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+
+    GPoint lives = GPoint( b.size.w/2 - PIECE_PIXELS, b.size.h - 6);
+    for (int L=0; L<3; ++L) {
+      GColor in;
+      GColor out;
+      if (s_score.lives - L > 0) {
+        if (L == 0) { in = GColorMintGreen; out = GColorDarkGreen; }
+        else if (L == 1) { in = GColorRajah; out = GColorWindsorTan; }
+        else { in = GColorMelon; out = GColorDarkCandyAppleRed; }
+      } else {
+        in = GColorLightGray;
+        out = GColorDarkGray;
+      }
+      GPoint p = lives;
+      p.x += PIECE_PIXELS * L;
+      graphics_context_set_stroke_color(ctx, out);
+      graphics_context_set_fill_color(ctx, in);
+      graphics_context_set_stroke_width(ctx, 3);
+      graphics_fill_circle(ctx, p, 3);
+      graphics_draw_circle(ctx, p, 3);
+    }
+    //APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW back e");
 
 }
 
 static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
-  APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW board s");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW board s");
   //
-  // graphics_context_set_antialiased(ctx, 0);
-  //
-  // // Fill back
-  // graphics_context_set_fill_color(ctx, GColorLightGray);
-  // graphics_fill_rect(ctx, GRect(0, 0, BOARD_SIZE_X, BOARD_SIZE_Y), 0, GCornersAll);
-  //
-  // // Fill highight
-  // graphics_context_set_fill_color(ctx, GColorDarkGray);
-  // graphics_fill_rect(ctx, GRect(s_cursor.x * PIECE_PIXELS, 0, PIECE_PIXELS, BOARD_SIZE_Y), 0, GCornersAll);
-  // graphics_fill_rect(ctx, GRect(0, s_cursor.y * PIECE_PIXELS, BOARD_SIZE_X, PIECE_PIXELS), 0, GCornersAll);
-  //
-  // graphics_context_set_stroke_color(ctx, GColorBlack);
-  // // Draw frame
-  // for (int x = 0; x < BOARD_PIECES_X; ++x) {
-  //   if (x%2 == 1 && x != BOARD_PIECES_X - 1) continue;
-  //   graphics_draw_rect(ctx, GRect(x*PIECE_PIXELS, 0, PIECE_PIXELS+1, BOARD_SIZE_Y+1));
-  // }
-  // for (int y = 0; y < BOARD_PIECES_Y; ++y) {
-  //   if (y%2 == 1 && y != BOARD_PIECES_Y - 1) continue;
-  //   graphics_draw_rect(ctx, GRect(0, y*PIECE_PIXELS, BOARD_SIZE_X+1, PIECE_PIXELS+1));
-  // }
-  //
-  // // Frame highlight
-  // graphics_context_set_stroke_color(ctx, GColorWhite);
-  // graphics_draw_rect(ctx, GRect(s_cursor.x*PIECE_PIXELS, s_cursor.y*PIECE_PIXELS, PIECE_PIXELS+1, PIECE_PIXELS+1));
-  //
-  // // Fill shapes
-  // for (int x = 0; x < BOARD_PIECES_X; ++x) {
-  //   for (int y = 0; y < BOARD_PIECES_Y; ++y) {
-  //     graphics_context_set_stroke_color(ctx, GColorBlack);
-  //     int xy = XY(x,y);
-  //     if (s_gameState == kFlashRemoved && s_pieces[xy].match != kUnmatched) {
-  //       GColor highlight;
-  //       if      (s_pieces[xy].match == kMatchedOnce)  highlight = GColorRajah;
-  //       else if (s_pieces[xy].match == kMatchedTwice) highlight = GColorWindsorTan;
-  //       else if (s_pieces[xy].match == kExploded)     highlight = GColorRoseVale;
-  //       graphics_context_set_fill_color(ctx, highlight);
-  //       graphics_fill_rect(ctx, GRect((s_pieces[xy].loc.x/SUB_PIXEL)+1, (s_pieces[xy].loc.y/SUB_PIXEL)+1, PIECE_PIXELS-1, PIECE_PIXELS-1), 0, GCornersAll);
-  //     }
-  //     switch (s_pieces[xy].colour) {
-  //       case kRed: graphics_context_set_fill_color(ctx, GColorRed); break;
-  //       case kYellow: graphics_context_set_fill_color(ctx, GColorYellow); break;
-  //       case kBlue: graphics_context_set_fill_color(ctx, GColorElectricUltramarine); break;
-  //       case kGreen: graphics_context_set_fill_color(ctx, GColorGreen); break;
-  //       case kPurple: graphics_context_set_fill_color(ctx, GColorCeleste); break;
-  //       case kOrange: graphics_context_set_fill_color(ctx, GColorOrange); break;
-  //       case kPink: graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender); break;
-  //       case kWhite: graphics_context_set_fill_color(ctx, GColorWhite); break;
-  //       case kBlack: graphics_context_set_fill_color(ctx, GColorBlack); break;
-  //       case kNONE: APP_LOG(APP_LOG_LEVEL_ERROR,"Try to draw kNONE at %i %i",x,y); break;
-  //       default: continue;
-  //     }
-  //     if (getShape( s_pieces[xy].colour ) != NULL) {
-  //       gpath_move_to(getShape( s_pieces[xy].colour ), GPoint(s_pieces[xy].loc.x/SUB_PIXEL, s_pieces[xy].loc.y/SUB_PIXEL));
-  //       gpath_draw_filled(ctx, getShape( s_pieces[xy].colour ));
-  //       gpath_draw_outline(ctx, getShape( s_pieces[xy].colour ));
-  //     } else {
-  //       graphics_fill_rect(ctx, GRect((s_pieces[xy].loc.x/SUB_PIXEL)+2, (s_pieces[xy].loc.y/SUB_PIXEL)+2, PIECE_PIXELS-3, PIECE_PIXELS-3), 2, GCornersAll);
-  //     }
-  //   }
-  // }
-  //
-  // // Move Arrows
-  // if (s_frame < 20 && s_gameState == kAwaitingDirection) {
-  //   graphics_context_set_fill_color(ctx, GColorWhite);
-  //   for (int d = 0; d < N_CARDINAL; ++d) {
-  //     gpath_move_to(getArrow(d), GPoint(s_cursor.x * PIECE_PIXELS, s_cursor.y * PIECE_PIXELS));
-  //     gpath_draw_filled(ctx, getArrow(d));
-  //     gpath_draw_outline(ctx, getArrow(d));
-  //   }
-  // }
-  //
-  // // Cursor
-  // if (getTiltStatus() > 0) {
-  //   graphics_context_set_fill_color(ctx, GColorWhite);
-  //   graphics_context_set_stroke_color(ctx, GColorBlack);
-  //   graphics_fill_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 3);
-  //   graphics_draw_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 3);
-  // }
-  //
-  // // Next move
-  // if (s_score.hintOn && s_availableMove.x != -1 && s_gameState == kIdle) {
-  //   graphics_context_set_stroke_color(ctx, GColorDarkCandyAppleRed);
-  //   graphics_context_set_stroke_width(ctx, 3);
-  //   graphics_draw_circle(ctx, GPoint(s_availableMove.x*PIECE_PIXELS + PIECE_PIXELS/2, s_availableMove.y*PIECE_PIXELS + PIECE_PIXELS/2), PIECE_PIXELS);
-  //   graphics_context_set_stroke_width(ctx, 1);
-  // }
-  //
-  // // Redo border
-  // graphics_context_set_stroke_color(ctx, GColorBlack);
-  // graphics_draw_rect(ctx, GRect(0, 0, BOARD_SIZE_X+1, BOARD_SIZE_Y+1));
-  APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW board e");
+  graphics_context_set_antialiased(ctx, 0);
+
+  // Fill back
+  graphics_context_set_fill_color(ctx, GColorLightGray);
+  graphics_fill_rect(ctx, GRect(0, 0, BOARD_SIZE_X, BOARD_SIZE_Y), 0, GCornersAll);
+
+  // Fill highight
+  graphics_context_set_fill_color(ctx, GColorDarkGray);
+  graphics_fill_rect(ctx, GRect(s_cursor.x * PIECE_PIXELS, 0, PIECE_PIXELS, BOARD_SIZE_Y), 0, GCornersAll);
+  graphics_fill_rect(ctx, GRect(0, s_cursor.y * PIECE_PIXELS, BOARD_SIZE_X, PIECE_PIXELS), 0, GCornersAll);
+
+  graphics_context_set_stroke_color(ctx, GColorBlack);
+  // Draw frame
+  for (int x = 0; x < BOARD_PIECES_X; ++x) {
+    if (x%2 == 1 && x != BOARD_PIECES_X - 1) continue;
+    graphics_draw_rect(ctx, GRect(x*PIECE_PIXELS, 0, PIECE_PIXELS+1, BOARD_SIZE_Y+1));
+  }
+  for (int y = 0; y < BOARD_PIECES_Y; ++y) {
+    if (y%2 == 1 && y != BOARD_PIECES_Y - 1) continue;
+    graphics_draw_rect(ctx, GRect(0, y*PIECE_PIXELS, BOARD_SIZE_X+1, PIECE_PIXELS+1));
+  }
+
+  // Frame highlight
+  graphics_context_set_stroke_color(ctx, GColorWhite);
+  graphics_draw_rect(ctx, GRect(s_cursor.x*PIECE_PIXELS, s_cursor.y*PIECE_PIXELS, PIECE_PIXELS+1, PIECE_PIXELS+1));
+
+  // Fill shapes
+  for (int x = 0; x < BOARD_PIECES_X; ++x) {
+    for (int y = 0; y < BOARD_PIECES_Y; ++y) {
+      graphics_context_set_stroke_color(ctx, GColorBlack);
+      int xy = XY(x,y);
+      if (s_gameState == kFlashRemoved && s_pieces[xy].match != kUnmatched) {
+        GColor highlight;
+        if      (s_pieces[xy].match == kMatchedOnce)  highlight = GColorRajah;
+        else if (s_pieces[xy].match == kMatchedTwice) highlight = GColorWindsorTan;
+        else if (s_pieces[xy].match == kExploded)     highlight = GColorRoseVale;
+        graphics_context_set_fill_color(ctx, highlight);
+        graphics_fill_rect(ctx, GRect((s_pieces[xy].loc.x/SUB_PIXEL)+1, (s_pieces[xy].loc.y/SUB_PIXEL)+1, PIECE_PIXELS-1, PIECE_PIXELS-1), 0, GCornersAll);
+      }
+      switch (s_pieces[xy].colour) {
+        case kRed: graphics_context_set_fill_color(ctx, GColorRed); break;
+        case kYellow: graphics_context_set_fill_color(ctx, GColorYellow); break;
+        case kBlue: graphics_context_set_fill_color(ctx, GColorElectricUltramarine); break;
+        case kGreen: graphics_context_set_fill_color(ctx, GColorGreen); break;
+        case kPurple: graphics_context_set_fill_color(ctx, GColorCeleste); break;
+        case kOrange: graphics_context_set_fill_color(ctx, GColorOrange); break;
+        case kPink: graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender); break;
+        case kWhite: graphics_context_set_fill_color(ctx, GColorWhite); break;
+        case kBlack: graphics_context_set_fill_color(ctx, GColorBlack); break;
+        case kNONE: APP_LOG(APP_LOG_LEVEL_ERROR,"Try to draw kNONE at %i %i",x,y); break;
+        default: continue;
+      }
+      if (getShape( s_pieces[xy].colour ) != NULL) {
+        gpath_move_to(getShape( s_pieces[xy].colour ), GPoint(s_pieces[xy].loc.x/SUB_PIXEL, s_pieces[xy].loc.y/SUB_PIXEL));
+        gpath_draw_filled(ctx, getShape( s_pieces[xy].colour ));
+        gpath_draw_outline(ctx, getShape( s_pieces[xy].colour ));
+      } else {
+        graphics_fill_rect(ctx, GRect((s_pieces[xy].loc.x/SUB_PIXEL)+2, (s_pieces[xy].loc.y/SUB_PIXEL)+2, PIECE_PIXELS-3, PIECE_PIXELS-3), 2, GCornersAll);
+      }
+    }
+  }
+
+  // Move Arrows
+  if (s_frame < 20 && s_gameState == kAwaitingDirection) {
+    graphics_context_set_fill_color(ctx, GColorWhite);
+    for (int d = 0; d < N_CARDINAL; ++d) {
+      gpath_move_to(getArrow(d), GPoint(s_cursor.x * PIECE_PIXELS, s_cursor.y * PIECE_PIXELS));
+      gpath_draw_filled(ctx, getArrow(d));
+      gpath_draw_outline(ctx, getArrow(d));
+    }
+  }
+
+  // Cursor
+  if (getTiltStatus() > 0) {
+    graphics_context_set_fill_color(ctx, GColorWhite);
+    graphics_context_set_stroke_color(ctx, GColorBlack);
+    graphics_fill_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 3);
+    graphics_draw_circle(ctx, GPoint(s_motionCursor.x/SUB_PIXEL,s_motionCursor.y/SUB_PIXEL), 3);
+  }
+
+  // Next move
+  if (s_score.hintOn && s_availableMove.x != -1 && s_gameState == kIdle) {
+    graphics_context_set_stroke_color(ctx, GColorDarkCandyAppleRed);
+    graphics_context_set_stroke_width(ctx, 3);
+    graphics_draw_circle(ctx, GPoint(s_availableMove.x*PIECE_PIXELS + PIECE_PIXELS/2, s_availableMove.y*PIECE_PIXELS + PIECE_PIXELS/2), PIECE_PIXELS);
+    graphics_context_set_stroke_width(ctx, 1);
+  }
+
+  // Redo border
+  graphics_context_set_stroke_color(ctx, GColorBlack);
+  graphics_draw_rect(ctx, GRect(0, 0, BOARD_SIZE_X+1, BOARD_SIZE_Y+1));
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW board e");
 
 }
 
 void mainWindowLoad(Window* parentWindow) {
-  APP_LOG(APP_LOG_LEVEL_WARNING,"J");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"J");
   GRect b = layer_get_bounds( window_get_root_layer(parentWindow) );
   s_windowSizeY = b.size.h - STATUS_BAR_LAYER_HEIGHT;
 
@@ -991,7 +990,7 @@ void mainWindowLoad(Window* parentWindow) {
   layer_set_update_proc(s_mainWindowLayer, mainWindowUpdateProc);
 
   int disp = (b.size.w - BOARD_SIZE_X) / 2;
-  APP_LOG(APP_LOG_LEVEL_WARNING,"K");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"K");
   s_boardLayer = layer_create( GRect(disp, disp, BOARD_SIZE_X + 1, BOARD_SIZE_Y + 1) );
   layer_add_child(s_mainWindowLayer, s_boardLayer);
   layer_set_update_proc(s_boardLayer, boardUpdateProc);
@@ -1004,25 +1003,25 @@ void mainWindowLoad(Window* parentWindow) {
   s_liquid  = GRect(0, b.size.h * SUB_PIXEL, b.size.w, b.size.h); // TODO x2 for safety
   s_nWaves = 0;
   s_liquidEnd = s_windowSizeY * SUB_PIXEL;
-  APP_LOG(APP_LOG_LEVEL_WARNING,"L");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"L");
 
-  APP_LOG(APP_LOG_LEVEL_WARNING,"M");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"M");
   s_currentRun = 0;
   s_switch.first = GPoint(-1,-1);
   s_switch.second = GPoint(-1,-1);
   s_cursor = GPoint(0,0);
   s_motionCursor = GPoint(PIECE_SUB_PIXELS/2,PIECE_SUB_PIXELS/2);
   s_availableMove = GPoint(-1,-1);
-  APP_LOG(APP_LOG_LEVEL_WARNING,"N");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"N");
   srand(time(NULL));
-  APP_LOG(APP_LOG_LEVEL_WARNING,"O");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"O");
   gameLoop(NULL);
-  APP_LOG(APP_LOG_LEVEL_WARNING,"P");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"P");
 
 }
 
 void mainWindowUnload() {
-  APP_LOG(APP_LOG_LEVEL_WARNING,"mainUnload");
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"mainUnload");
   if (s_gameState == kGameOver) endGame();
   else saveGame();
   layer_destroy(s_boardLayer);

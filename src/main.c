@@ -42,11 +42,13 @@ void pushMainWindow() {
   APP_LOG(APP_LOG_LEVEL_WARNING,"H");
   window_stack_push(s_mainWindow, true);
   APP_LOG(APP_LOG_LEVEL_WARNING,"I");
+  stopSplashTick();
 }
 
 void pushSplashWindow() {
-  window_stack_pop(true);
-  window_stack_push(s_splashWindow, true);
+  window_stack_pop(false);
+  startSplashTick();
+  //window_stack_push(s_splashWindow, true);
 }
 
 int main(void) {
