@@ -27,7 +27,7 @@ static void init(void) {
 
   initGlobals();
   //initPersistence();
-  reset();
+  reset(); //for debug
 }
 
 static void deinit(void) {
@@ -37,8 +37,8 @@ static void deinit(void) {
 }
 
 void pushMainWindow() {
-  APP_LOG(APP_LOG_LEVEL_WARNING,"G");
-  window_stack_pop(true);
+  APP_LOG(APP_LOG_LEVEL_WARNING,"G now with NO POP");
+  //window_stack_pop(true);
   APP_LOG(APP_LOG_LEVEL_WARNING,"H");
   window_stack_push(s_mainWindow, true);
   APP_LOG(APP_LOG_LEVEL_WARNING,"I");

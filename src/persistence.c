@@ -38,7 +38,7 @@ void initPersistence() {
 
 int getHintStatus() { return hint; }
 int getBacklightStatus() { return backlight; }
-int getTiltStatus() {return tilt; }
+int getTiltStatus() { return tilt; }
 bool getGameInProgress() { return gameSaved; }
 int getCurrentLevel() { return currentLevel; }
 int getBestLevel() { return bestLevel; }
