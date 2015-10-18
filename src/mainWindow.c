@@ -694,6 +694,7 @@ void checkSwitch(int x, int y) {
 }
 
 static void dataHandler(AccelData* data, uint32_t num_samples) {
+  APP_LOG(APP_LOG_LEVEL_WARNING,"gotTilt");
   // Update
   s_motionCursor.x += data[0].x / getTiltStatus(); // 0=off, 1=high, 2=low
   s_motionCursor.y -= data[0].y / getTiltStatus();
@@ -718,6 +719,7 @@ static void dataHandler(AccelData* data, uint32_t num_samples) {
 
 void tiltMode() {
   if (getTiltStatus() > 0) {
+    APP_LOG(APP_LOG_LEVEL_WARNING,"tiltOn");
     accel_data_service_subscribe(1, dataHandler);
     accel_service_set_sampling_rate(ACCEL_SAMPLING_25HZ);
   } else{
@@ -799,6 +801,7 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
 }
 
 void mainWindowClickConfigProvider(Window *window) {
+  APP_LOG(APP_LOG_LEVEL_WARNING,"mainWSetClickProv");
   window_single_repeating_click_subscribe(BUTTON_ID_SELECT, 100, mainWindowClickHandler);
   window_single_repeating_click_subscribe(BUTTON_ID_UP, 100, mainWindowClickHandler);
   window_single_click_subscribe(BUTTON_ID_DOWN, mainWindowClickHandler);
@@ -828,8 +831,8 @@ static void mainWindowUpdateProc(Layer* this_layer, GContext *ctx) {
    APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW back s, BGColor correct? %i", s_colourBackground);
 
 
-    setFillColour(ctx, s_colourBackground);
-    graphics_fill_rect(ctx, layer_get_bounds(this_layer), 0, GCornersAll);
+    //setFillColour(ctx, s_colourBackground);
+    //graphics_fill_rect(ctx, layer_get_bounds(this_layer), 0, GCornersAll);
 
     //
     // setFillColour(ctx, s_colourForground);
@@ -1019,6 +1022,7 @@ void mainWindowLoad(Window* parentWindow) {
 }
 
 void mainWindowUnload() {
+  APP_LOG(APP_LOG_LEVEL_WARNING,"mainUnload");
   if (s_gameState == kGameOver) endGame();
   else saveGame();
   layer_destroy(s_boardLayer);
