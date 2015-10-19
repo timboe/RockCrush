@@ -567,7 +567,7 @@ bool checkScoreBuffer() {
   // Do we have a little or a lot of points to award?
   if (s_score.pointBuffer >= s_score.pointsToNextLevel/10) s_nWaves = 3; // > 10%
   else if (s_score.pointBuffer >= s_score.pointsToNextLevel/20) s_nWaves = 2; // > 5%
-  else if (s_score.pointBuffer >= s_score.pointsToNextLevel/50) s_nWaves = 1; // > 2 %
+  else if (s_score.pointBuffer >= s_score.pointsToNextLevel/33) s_nWaves = 1; // > ~3 %
   else return false; // Not enough
 
   s_wave[0].origin.y = (s_windowSizeY) * SUB_PIXEL; //size 10
@@ -603,8 +603,8 @@ bool applyPoints() {
 }
 
 void updateLevelColour() {
-  int s_colourForground = s_score.level;
-  int s_colourBackground = s_score.level - 1;
+  s_colourForground = s_score.level;
+  s_colourBackground = s_score.level - 1;
   while (s_colourForground >= N_LEVEL_COLOURS) s_colourForground -= N_LEVEL_COLOURS;
   while (s_colourBackground >= N_LEVEL_COLOURS) s_colourBackground -= N_LEVEL_COLOURS;
   APP_LOG(APP_LOG_LEVEL_INFO, "Updated colours %i %i", s_colourForground, s_colourBackground);
@@ -625,6 +625,7 @@ bool checkNewLevel() {
   }
   s_nWaves = 0;
   s_scoreState = kWait;
+  APP_LOG(APP_LOG_LEVEL_INFO, "Wave animation done");
   return true;
 }
 
@@ -781,11 +782,11 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
 
   } else {
 
-    if      (BUTTON_ID_UP == button && getTiltStatus() == 0) --s_cursor.y;
-    else if (BUTTON_ID_UP == button && getTiltStatus() >  0) s_motionCursor.y -= PIECE_SUB_PIXELS;
-    else if (BUTTON_ID_SELECT == button && getTiltStatus() == 0) ++s_cursor.x;
-    else if (BUTTON_ID_SELECT == button && getTiltStatus() >  0) s_motionCursor.x += PIECE_SUB_PIXELS;
-    else if (BUTTON_ID_DOWN == button && s_gameState == kIdle) {
+    if      (BUTTON_ID_SELECT == button && getTiltStatus() == 0) --s_cursor.y;
+    else if (BUTTON_ID_SELECT == button && getTiltStatus() >  0) s_motionCursor.y -= PIECE_SUB_PIXELS;
+    else if (BUTTON_ID_DOWN == button && getTiltStatus() == 0) ++s_cursor.x;
+    else if (BUTTON_ID_DOWN == button && getTiltStatus() >  0) s_motionCursor.x += PIECE_SUB_PIXELS;
+    else if (BUTTON_ID_UP == button && s_gameState == kIdle) {
       s_gameState = kAwaitingDirection;
       s_switch.first = s_cursor;
     } else if (BUTTON_ID_BACK == button) {
@@ -827,16 +828,15 @@ void setFillColour(GContext *ctx, int i) {
 }
 
 static void mainWindowUpdateProc(Layer* this_layer, GContext *ctx) {
-   //APP_LOG(APP_LOG_LEVEL_WARNING,"DRAW back s, BGColor correct? %i", s_colourBackground);
+   //APP_LOG(APP_LOG_LEVEL_WARNING,"set BG %i", s_colourBackground);
 
 
     setFillColour(ctx, s_colourBackground);
     graphics_fill_rect(ctx, layer_get_bounds(this_layer), 0, GCornersAll);
-
-
     setFillColour(ctx, s_colourForground);
     GRect L = s_liquid;
     L.origin.y /= SUB_PIXEL;
+    //APP_LOG(APP_LOG_LEVEL_WARNING,"set FG %i to Y=%i", s_colourForground, L.origin.y);
     graphics_fill_rect(ctx, L, 0, GCornersAll);
     setFillColour(ctx, s_colourBackground);
     if (s_nWaves) {

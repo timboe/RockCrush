@@ -26,8 +26,7 @@ static void init(void) {
   });
 
   initGlobals();
-  //initPersistence();
-  reset(); //for debug
+  initPersistence();
 }
 
 static void deinit(void) {
@@ -46,9 +45,12 @@ void pushMainWindow() {
 }
 
 void pushSplashWindow() {
-  window_stack_push(s_mainWindow, true);
-  startSplashTick();
+  //APP_LOG(APP_LOG_LEVEL_WARNING,"Push splash");
+  //window_stack_remove(s_mainWindow, true);
+  //startSplashTick();
   //window_stack_push(s_splashWindow, true);
+  // totally broken - kill app
+  window_stack_pop_all(false);
 }
 
 int main(void) {
