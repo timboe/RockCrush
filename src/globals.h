@@ -55,6 +55,7 @@ typedef enum {
   kRemoveAndReplace,
   kSettleBoard,
   kFindNextMove,
+  kCheckLives,
   kGameOver
 } GameState_t;
 

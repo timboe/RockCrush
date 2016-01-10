@@ -42,7 +42,7 @@ void draw3DText(GContext *ctx, GRect loc, GFont f, const char* buffer, uint8_t o
   if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_L);
   loc.origin.x -= offset; // CL
   loc.origin.y += offset; // UL
-  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
+  if (!BWMode) graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
 
   if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_U);
   loc.origin.x += offset; // CU
@@ -125,8 +125,8 @@ static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
     titleR.size.w - 20,
     20);
 
-    static const char txtOre[] = "O r e";
-    static const char txtSwapper[] = "Swapper";
+  static const char txtOre[] = "O r e";
+  static const char txtSwapper[] = "Swapper";
 
   draw3DText(ctx, oreR,     fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK), txtOre, 2, GTextAlignmentLeft, false, GColorBlack, GColorBlack);
   draw3DText(ctx, swapperR, fonts_get_system_font(FONT_KEY_GOTHIC_28), txtSwapper, 2, GTextAlignmentRight, false, GColorBlack, GColorBlack);
@@ -172,7 +172,7 @@ void tick(void* data) {
     redraw();
   }
 
-  if (s_frame % 100 == 0) APP_LOG(APP_LOG_LEVEL_DEBUG, "ticking still");
+  if (s_frame == 0) APP_LOG(APP_LOG_LEVEL_DEBUG, "ticking still");
 }
 
 void scrollUpdateProc(Layer* thisLayer, GContext *ctx) {
@@ -187,8 +187,8 @@ void scrollUpdateProc(Layer* thisLayer, GContext *ctx) {
     //graphics_draw_text(ctx, s_textMain[i], fonts_get_system_font(FONT_KEY_GOTHIC_28), b, GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
 
     b.origin.y += 25;
-    draw3DText(ctx, b, fonts_get_system_font(FONT_KEY_GOTHIC_24)     , s_textSub[i] , 1, GTextAlignmentRight, true, GColorWhite, GColorBlack);
-    //graphics_draw_text(ctx, s_textSub[i], fonts_get_system_font(FONT_KEY_GOTHIC_24), b, GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
+    //draw3DText(ctx, b, fonts_get_system_font(FONT_KEY_GOTHIC_24)     , s_textSub[i] , 1, GTextAlignmentRight, true, GColorWhite, GColorBlack);
+    graphics_draw_text(ctx, s_textSub[i], fonts_get_system_font(FONT_KEY_GOTHIC_24), b, GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
 
   }
 }
@@ -227,11 +227,11 @@ void splashWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
   int minOption = 0;
   if (getGameInProgress() == false) minOption = 1;
 
-  if      (BUTTON_ID_UP     == button && s_selectedMenuItem > minOption) --s_selectedMenuItem;
-  else if (BUTTON_ID_DOWN   == button && s_selectedMenuItem < MENU_ITEMS-1) ++s_selectedMenuItem;
+  if      (BUTTON_ID_UP     == button) --s_selectedMenuItem;
+  else if (BUTTON_ID_DOWN   == button) ++s_selectedMenuItem;
   else if (BUTTON_ID_SELECT == button) {
     switch (s_selectedMenuItem) {
-      case 0: newGame(true); pushMainWindow(); break;
+      case 0: newGame(true); pushMainWindow(); return;
       case 1: APP_LOG(APP_LOG_LEVEL_WARNING,"A"); newGame(false); APP_LOG(APP_LOG_LEVEL_WARNING,"F"); pushMainWindow(); break;
       case 2: setTiltStatus( getTiltStatus() + 1 ); break;
       case 3: setBacklightStatus( getBacklightStatus() + 1 ); break;
@@ -240,11 +240,13 @@ void splashWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
     setText();
   }
 
+  if (s_selectedMenuItem < 0) s_selectedMenuItem = MENU_ITEMS-1;
+  else if (s_selectedMenuItem >= MENU_ITEMS) s_selectedMenuItem = minOption;
+
   s_arrow[0] = 1;
   s_arrow[1] = 1;
   if (s_selectedMenuItem == minOption) s_arrow[0] = 0;
   else if (s_selectedMenuItem == MENU_ITEMS-1) s_arrow[1] = 0;
-
 }
 
 void splashWindowClickConfigProvider(Window *window) {
@@ -293,6 +295,7 @@ void stopSplashTick() {
 }
 
 void splashWindowUnload() {
+  APP_LOG(APP_LOG_LEVEL_WARNING,"SW unload start");
   layer_destroy(s_scrollLayer);
   layer_destroy(s_mainLayer);
   status_bar_layer_destroy(s_statusBar);
@@ -304,4 +307,5 @@ void splashWindowUnload() {
     free(s_textSub[i]);
   }
   stopSplashTick();
+  APP_LOG(APP_LOG_LEVEL_WARNING,"SW unload done");
 }

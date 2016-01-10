@@ -68,8 +68,8 @@ void score(MatchType_t type, int n) {
     case kColumn: s_score.pointBuffer += SCORE_ROW * M; break;
     case kCross: s_score.pointBuffer += (SCORE_ROW+SCORE_COLUMN) * M; break;
     case kBOOM: case kColourBoom: case kMiniBoom: s_score.pointBuffer += SCORE_BOOM * n * M; break;
-    case kMatch3: s_score.pointBuffer += SCORE_3 + M; break; // Note - plus - nerfed
-    case kMatch4: s_score.pointBuffer += SCORE_4 + M; break; // Note - plus - nerfed
+    case kMatch3: s_score.pointBuffer += SCORE_3 + M; break; // Note - plus sign - nerfed
+    case kMatch4: s_score.pointBuffer += SCORE_4 + M; break; // Note - plus sign - nerfed
     case kMatchT: s_score.pointBuffer += SCORE_T * M; break;
   }
   APP_LOG(APP_LOG_LEVEL_INFO, "points enum %i scored %i", type, s_score.pointBuffer - b4);
@@ -116,7 +116,7 @@ bool checkLocation(GPoint location) {
       xA = -2; xB = -1;
     } else if (check == 1 && location.x >= 1 && location.x <= BOARD_PIECES_X-2) { // X mid
       xA = -1; xB = 1;
-    } else if (check == 2  && location.x <= BOARD_PIECES_X-3) { // X +ve
+    } else if (check == 2 && location.x <= BOARD_PIECES_X-3) { // X +ve
       xA = 1; xB = 2;
     } else if (check == 3 && location.y >= 2) { // Y -ve
       yA = -2; yB = -1;
@@ -191,6 +191,12 @@ void updateSwitchPiecePhysics(int v) {
 #define NUDGE_MAX_SPEED 70
 bool nudgeAnimate() {
   static int v = 0, mode = 0;
+  static GPoint firstStart, secondStart;
+
+  if (mode == 0 && v == 0) {
+    firstStart = s_pieces[ XYp(s_switch.first) ].loc;
+    secondStart = s_pieces[ XYp(s_switch.second) ].loc;
+  }
 
   if (mode == 0 && v >= NUDGE_MAX_SPEED) mode = 1;
   else if (mode == 1 && v <= -NUDGE_MAX_SPEED) mode = 2;
@@ -204,6 +210,8 @@ bool nudgeAnimate() {
   if (mode == 3) {
     mode = 0;
     v = 0;
+    s_pieces[ XYp(s_switch.first)  ].loc = firstStart; // Snap back to grid
+    s_pieces[ XYp(s_switch.second) ].loc = secondStart;
     s_gameState = kIdle;
   }
 
@@ -320,7 +328,7 @@ bool findMatches() {
       explode(kBOOM, s_switch.second.x, s_switch.second.y, 0);
       matchesFound = true;
     } else if (s_pieces[XYp(s_switch.first)].colour == kWhite && s_pieces[XYp(s_switch.second)].colour == kBlack) { //White black
-      explode(kCross, s_switch.second.x, s_switch.second.y, 0);
+      explode(kCross, s_switch.first.x, s_switch.first.y, 0);
       matchesFound = true;
     } else if (s_pieces[XYp(s_switch.first)].colour == kBlack && s_pieces[XYp(s_switch.second)].colour == kWhite) { //Black white
       explode(kCross, s_switch.second.x, s_switch.second.y, 0);
@@ -336,7 +344,7 @@ bool findMatches() {
     }
   }
 
-  for (int dir = 0; dir < 2; ++dir) {
+  for (int dir = 0; dir < 2; ++dir) { // x or y
 
     int xStop = 0, yStop = 0, max = 0;
     if (dir == 0) {
@@ -412,6 +420,7 @@ bool findMatches() {
           }
         }
 
+        // Skip over the cells we've just dealed with
         if      (dir == 0 && runSize > 2) y += (runSize-1);
         else if (dir == 1 && runSize > 2) x += (runSize-1);
       }
@@ -460,7 +469,7 @@ bool findNextMove() {
       if (checkMove() == true) { // If valid
         s_availableMove = s_switch.first;
         s_gameState = kIdle;
-        if (s_autoMode == true) s_gameState = kCheckMove;
+        if (s_autoMode == true) s_gameState = kCheckMove; // Game plays iteself
         s_hintTimer = app_timer_register(HINT_TIMER, enableHint, NULL);
         return false; // don't redraw
       }
@@ -481,7 +490,7 @@ bool findNextMove() {
   }
 
   s_availableMove = GPoint(-1,-1);
-  s_gameState = kGameOver;
+  s_gameState = kCheckLives;
   return false; // don't redraw
 }
 
@@ -629,6 +638,12 @@ bool checkNewLevel() {
   return true;
 }
 
+//TODO
+bool checkLives() {
+  s_gameState = kGameOver;
+  return false;
+}
+
 // TODO
 bool gameOver() {
   return false;
@@ -653,6 +668,7 @@ void gameLoop(void* data) {
     case kRemoveAndReplace: requestRedraw = removeAndReplace(); break;
     case kSettleBoard: requestRedraw = settleBoard(); break;
     case kFindNextMove: requestRedraw = findNextMove(); break;
+    case kCheckLives: requestRedraw = checkLives(); break;
     case kGameOver: requestRedraw = gameOver(); break;
     default: break;
   }
@@ -670,7 +686,7 @@ void gameLoop(void* data) {
   if (getTiltStatus() > 0 || requestRedraw == true) redraw();
   //APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP e");
 
-  if (s_frame % 1000 == 0)  APP_LOG(APP_LOG_LEVEL_DEBUG, "game looping still");
+  if (s_frame == 0)  APP_LOG(APP_LOG_LEVEL_DEBUG, "game looping still");
   s_gameLoopTime = app_timer_register(ANIM_DELAY, gameLoop, NULL);
   //APP_LOG(APP_LOG_LEVEL_WARNING,"LOOP f");
 
@@ -709,7 +725,7 @@ static void dataHandler(AccelData* data, uint32_t num_samples) {
   GPoint before = s_cursor;
 
   // Translate
-  s_cursor.x = s_motionCursor.x / (PIECE_SUB_PIXELS); //Note: quotes due to macro
+  s_cursor.x = s_motionCursor.x / (PIECE_SUB_PIXELS); //Note: bracket due to macro
   s_cursor.y = s_motionCursor.y / (PIECE_SUB_PIXELS);
 
   if (before.x != s_cursor.x || before.y != s_cursor.y) {
@@ -757,7 +773,7 @@ void newGame(bool doLoadGame) {
         }
       }
       s_pieces[ XY(x,y) ].loc.x = x * PIECE_SUB_PIXELS; // Set location
-      s_pieces[ XY(x,y) ].loc.y = (y * PIECE_SUB_PIXELS) - offset;// - (rand() % PIECE_SUB_PIXELS);
+      s_pieces[ XY(x,y) ].loc.y = (y * PIECE_SUB_PIXELS) - offset;// - (rand() % PIECE_SUB_PIXELS); // This is for physics
     }
     offset += PIECE_SUB_PIXELS;// + (rand() % PIECE_SUB_PIXELS);
   }
@@ -791,6 +807,7 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
       s_switch.first = s_cursor;
     } else if (BUTTON_ID_BACK == button) {
       pushSplashWindow();
+      return;
     }
 
     if (s_cursor.x >= BOARD_PIECES_X) s_cursor.x = 0;
@@ -962,7 +979,7 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
   }
 
   // Next move
-  if (s_score.hintOn && s_availableMove.x != -1 && s_gameState == kIdle) {
+  if (s_score.hintOn && s_availableMove.x != -1 && s_gameState == kIdle && getHintStatus() == true) {
     graphics_context_set_stroke_color(ctx, GColorDarkCandyAppleRed);
     graphics_context_set_stroke_width(ctx, 3);
     graphics_draw_circle(ctx, GPoint(s_availableMove.x*PIECE_PIXELS + PIECE_PIXELS/2, s_availableMove.y*PIECE_PIXELS + PIECE_PIXELS/2), PIECE_PIXELS);

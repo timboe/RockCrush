@@ -14,6 +14,7 @@ bool gameSaved;
 static Colour_t s_colourArray[BOARD_PIECES_X * BOARD_PIECES_Y];
 
 void initPersistence() {
+
   if (persist_exists(KEY_HINT) == 0 || persist_exists(KEY_BACKLIGHT) == 0 || persist_exists(KEY_TILT) == 0) {
     persist_write_int(KEY_HINT, 1);
     persist_write_int(KEY_BACKLIGHT, 1);
@@ -44,35 +45,40 @@ int getCurrentLevel() { return currentLevel; }
 int getBestLevel() { return bestLevel; }
 
 void setHintStatus(int i) {
+  if (i < 0) i = 0;
   if (i >= 2) i = 0;
   hint = i;
   persist_write_int(KEY_HINT, hint);
 }
 
 void setBacklightStatus(int i) {
+  if (i < 0) i = 0;
   if (i >= 2) i = 0;
   backlight = i;
-  light_enable(backlight);
+  light_enable((bool)backlight);
   persist_write_int(KEY_BACKLIGHT, backlight);
 }
 
 void setTiltStatus(int i) {
+  if (i < 0) i = 0;
   if (i >= 3) i = 0;
   tilt = i;
   persist_write_int(KEY_TILT, tilt);
 }
 
 void loadGame() {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "LOAD GAME");
   int score = persist_read_data(KEY_SCORE, getScore(), sizeof(Score_t) );
   int board = persist_read_data(KEY_BOARD, s_colourArray, BOARD_PIECES*sizeof(Colour_t));
-  for (int i = 0; i < BOARD_PIECES; ++i) { getPiece()[i].colour = s_colourArray[i]; APP_LOG(APP_LOG_LEVEL_DEBUG, "set piece %i to %i", i, getPiece()[i].colour); }
+  for (int i = 0; i < BOARD_PIECES; ++i) { getPiece()[i].colour = s_colourArray[i]; /*APP_LOG(APP_LOG_LEVEL_DEBUG, "set piece %i to %i", i, getPiece()[i].colour);*/ }
   currentLevel = getScore()->level;
   bestLevel = getScore()->bestLevel;
   APP_LOG(APP_LOG_LEVEL_DEBUG, "LOAD: board result:%i score result:%i", board, score);
 }
 
 void saveGame() {
-  for (int i = 0; i < BOARD_PIECES; ++i) { s_colourArray[i] = getPiece()[i].colour; APP_LOG(APP_LOG_LEVEL_DEBUG, "saved piece %i to %i", i, s_colourArray[i] ); }
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "SAVE GAME");
+  for (int i = 0; i < BOARD_PIECES; ++i) { s_colourArray[i] = getPiece()[i].colour; /*APP_LOG(APP_LOG_LEVEL_DEBUG, "saved piece %i to %i", i, s_colourArray[i] );*/ }
   int board = persist_write_data(KEY_BOARD, s_colourArray, BOARD_PIECES*sizeof(Colour_t));
   int score = persist_write_data(KEY_SCORE, getScore(), sizeof(Score_t));
   APP_LOG(APP_LOG_LEVEL_DEBUG, "SAVE: Wrote board:%i bytes and score:%i bytes", board, score);
@@ -96,5 +102,4 @@ void reset() {
   if (persist_exists(KEY_TILT)) persist_delete(KEY_TILT);
   if (persist_exists(KEY_BOARD)) persist_delete(KEY_BOARD);
   if (persist_exists(KEY_SCORE)) persist_delete(KEY_SCORE);
-  initPersistence();
 }

@@ -45,17 +45,19 @@ void pushMainWindow() {
 }
 
 void pushSplashWindow() {
-  //APP_LOG(APP_LOG_LEVEL_WARNING,"Push splash");
-  //window_stack_remove(s_mainWindow, true);
-  //startSplashTick();
-  //window_stack_push(s_splashWindow, true);
-  // totally broken - kill app
-  window_stack_pop_all(false);
+  APP_LOG(APP_LOG_LEVEL_WARNING,"Push splash");
+  window_stack_remove(s_mainWindow, true);
+  startSplashTick();
+  window_stack_push(s_splashWindow, true);
+
+  // totally broken  :( - kill app
+  //window_stack_pop_all(false);
 }
 
 int main(void) {
+  reset(); // testing!
   init();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Done initializing, pushed window: %p", s_splashWindow);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Done initializing, pushed window:: %p", s_splashWindow);
   window_stack_push(s_splashWindow, true);
   app_event_loop();
   deinit();
