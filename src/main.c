@@ -55,7 +55,7 @@ void pushSplashWindow() {
 }
 
 int main(void) {
-  reset(); // testing!
+  //reset(); // testing!
   init();
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Done initializing, pushed window:: %p", s_splashWindow);
   window_stack_push(s_splashWindow, true);
