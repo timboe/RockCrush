@@ -33,7 +33,7 @@ const GPathInfo shapeYellow = {
 
 const GPathInfo shapeBlue = {
   .num_points = 5,
-  .points = (GPoint []) {{2, 2}, {7, 6}, {13, 3}, {9, 13}, {4, 11}}
+  .points = (GPoint []) {{2, 2}, {7, 6}, {13, 3}, {9, 13}, {2, 11}}
 };
 
 const GPathInfo shapePurple = {
