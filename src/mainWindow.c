@@ -594,7 +594,8 @@ bool checkScoreBuffer() {
 
   s_wave[0].origin.y = (s_windowSizeY) * SUB_PIXEL; //size 10
   s_wave[1].origin.y = (s_windowSizeY + 20) * SUB_PIXEL; // gap 10, size 15
-  s_wave[2].origin.y = (s_
+  s_wave[2].origin.y = (s_windowSizeY + 45) * SUB_PIXEL; // gap 10, size 20
+  s_waveV = 0;
 
   s_score.points += s_score.pointBuffer;
   s_score.pointBuffer = 0;
@@ -625,7 +626,6 @@ void updateLevelColour() {
   s_colourBackground = s_score.level - 1;
   while (s_colourForground >= N_LEVEL_COLOURS) s_colourForground -= N_LEVEL_COLOURS;
   while (s_colourBackground >= N_LEVEL_COLOURS) s_colourBackground -= N_LEVEL_COLOURS;
-  //APP_LOG(APP_LOG_LEVEL_INFO, "Updated colours %i %i", s_colourForground, s_colourBackground);
 }
 
 bool checkNewLevel() {
@@ -635,7 +635,7 @@ bool checkNewLevel() {
     switch (++s_score.level) {
         case 3: s_score.nColoursActive = 6; break;
         case 6: s_score.nColoursActive = 7; break;
-        case 16: s_score.nColoursActive = 8; break;
+        case 15: s_score.nColoursActive = 8; break;
         default: break;
     }
     updateLevelColour();
