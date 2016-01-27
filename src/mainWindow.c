@@ -14,7 +14,7 @@ static int s_nWaves = 0;
 static int s_liquidEnd = 0;
 static int s_windowSizeY = 0;
 
-static bool s_autoMode = 1;
+static bool s_autoMode = 0;
 static int s_frame = 0;
 
 static int s_tiltMode = 0;
@@ -635,7 +635,7 @@ bool checkNewLevel() {
     switch (++s_score.level) {
         case 3: s_score.nColoursActive = 6; break;
         case 6: s_score.nColoursActive = 7; break;
-        case 15: s_score.nColoursActive = 8; break;
+        case 12: s_score.nColoursActive = 8; break;
         default: break;
     }
     updateLevelColour();
