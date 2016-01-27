@@ -8,17 +8,17 @@ GPath* getArrow(int n) { return s_arrows[n]; }
 
 const GPathInfo shapeRed = {
   .num_points = 7,
-  .points = (GPoint []) {{2, 12}, {13, 13}, {11, 2}, {9, 7}, {7, 2}, {5, 9}, {2, 2}}
+  .points = (GPoint []) {{2, 12}, {13, 13}, {12, 3}, {9, 7}, {7, 5}, {5, 9}, {2, 2}}
 };
 
 const GPathInfo shapePink = {
   .num_points = 10,
-  .points = (GPoint []) {{4, 13}, {11, 13}, {13, 8}, {13, 6}, {9, 2}, {6, 3}, {8, 6}, {7, 8}, {4, 5}, {2, 7}}
+  .points = (GPoint []) {{4, 13}, {13, 13}, {13, 8}, {13, 6}, {9, 2}, {6, 3}, {8, 6}, {7, 8}, {4, 5}, {2, 7}}
 };
 
 const GPathInfo shapeOrange = {
   .num_points = 8,
-  .points = (GPoint []) {{2, 7}, {6, 5}, {8, 2}, {10, 6}, {13, 8}, {10, 9}, {7, 13}, {6, 9}}
+  .points = (GPoint []) {{2, 8}, {6, 6}, {8, 2}, {10, 6}, {13, 8}, {10, 10}, {8, 12}, {6, 10}}
 };
 
 const GPathInfo shapeGreen = {
@@ -33,12 +33,17 @@ const GPathInfo shapeYellow = {
 
 const GPathInfo shapeBlue = {
   .num_points = 5,
-  .points = (GPoint []) {{2, 2}, {7, 6}, {13, 3}, {9, 13}, {2, 11}}
+  .points = (GPoint []) {{2, 2}, {7, 5}, {13, 3}, {9, 13}, {2, 11}}
 };
 
 const GPathInfo shapePurple = {
   .num_points = 3,
-  .points = (GPoint []) {{3, 2}, {13, 10}, {6, 13}}
+  .points = (GPoint []) {{3, 2}, {13, 8}, {3, 13}}
+};
+
+const GPathInfo shapeBrown = {
+  .num_points = 4,
+  .points = (GPoint []) {{2, 13}, {7, 1}, {13, 13}, {8, 10}}
 };
 
 const GPathInfo shapeWhite = {
@@ -47,8 +52,8 @@ const GPathInfo shapeWhite = {
 };
 
 const GPathInfo shapeBlack = {
-  .num_points = 14,
-  .points = (GPoint []) {{2, 2}, {5, 5}, {7, 2}, {8, 7}, {11, 2}, {13, 7}, {11, 11}, {13, 13}, {10, 13}, {8, 11}, {4, 13}, {2, 11}, {4, 8}, {2, 5}}
+  .num_points = 6,
+  .points = (GPoint []) {{2, 2}, {7, 7}, {13, 2}, {12, 13}, {7, 8}, {2, 13}}
 };
 
 const GPathInfo shapeN = {
@@ -71,16 +76,43 @@ const GPathInfo shapeW = {
   .points = (GPoint []) {{-1, 0}, {-1, 15}, {-8, 9}, {-8, 6}}
 };
 
+// const char* const COLOUR_TEXT[N_COLOURS] = {
+//   "blank",
+//   "SPIKY",
+//   "STICKY",
+//   "BLU",
+//   "PAPEY",
+//   "POINTY",
+//   "SHINY",
+//   "PINKY",
+//   "PURE",
+//   "SOOTY"
+// };
+
+GColor COLOURS[N_COLOURS];
+
 void initGlobals() {
   s_shapes[kRed] = gpath_create(&shapeRed);
   s_shapes[kOrange] = gpath_create(&shapeOrange);
   s_shapes[kGreen] = gpath_create(&shapeGreen);
   s_shapes[kWhite] = gpath_create(&shapeWhite);
-  s_shapes[kBlack] = gpath_create(&shapeBlack);
+  s_shapes[kBlack] = gpath_create(&shapeWhite);
   s_shapes[kPink] = gpath_create(&shapePink);
   s_shapes[kYellow] = gpath_create(&shapeYellow);
   s_shapes[kPurple] = gpath_create(&shapePurple);
   s_shapes[kBlue] = gpath_create(&shapeBlue);
+  s_shapes[kBrown] = gpath_create(&shapeBrown);
+
+  COLOURS[kRed] = GColorRed;
+  COLOURS[kOrange] = GColorOrange;
+  COLOURS[kGreen] = GColorGreen;
+  COLOURS[kWhite] = GColorWhite;
+  COLOURS[kBlack] = GColorBlack;
+  COLOURS[kPink] = GColorMagenta;
+  COLOURS[kYellow] = GColorYellow;
+  COLOURS[kPurple] = GColorCyan;
+  COLOURS[kBlue] = GColorElectricUltramarine;
+  COLOURS[kBrown] = GColorImperialPurple;
 
   s_arrows[kN] = gpath_create(&shapeN);
   s_arrows[kE] = gpath_create(&shapeE);
@@ -94,4 +126,45 @@ void destroyGlobals() {
     if (i >= N_CARDINAL) continue;
     gpath_destroy(s_arrows[i]);
   }
+}
+
+void draw3DText(GContext *ctx, GRect loc, GFont f, const char* buffer, uint8_t offset, GTextAlignment al, bool BWMode, GColor BWFg, GColor BWBg) {
+
+  if (BWMode) graphics_context_set_text_color(ctx, BWBg);
+
+  // corners
+  if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_L);
+  loc.origin.x -= offset; // CL
+  loc.origin.y += offset; // UL
+  if (!BWMode) graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
+
+  if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_U);
+  loc.origin.x += offset; // CU
+  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
+  loc.origin.x += offset; // RU
+  if (!BWMode) graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
+
+
+  if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_R);
+  loc.origin.y -= offset; // CR
+  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
+  loc.origin.y -= offset; // DR
+  if (!BWMode) graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
+
+
+  if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_D);
+  loc.origin.x -= offset; // DC
+  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
+  loc.origin.x -= offset; // DR
+  if (!BWMode) graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
+
+  if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_L);
+  loc.origin.y += offset; // CR
+  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
+
+  // main
+  if (BWMode) graphics_context_set_text_color(ctx, BWFg);
+  else graphics_context_set_text_color(ctx, TEXT_COLOUR_C);
+  loc.origin.x += offset; // O
+  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
 }

@@ -9,77 +9,39 @@ static Layer* s_mainLayer;
 static Layer* s_scrollLayer;
 static StatusBarLayer* s_statusBar = NULL;
 
-#define TEXT_COLOUR_L GColorWindsorTan
-#define TEXT_COLOUR_U GColorOrange
-#define TEXT_COLOUR_R GColorRajah
-#define TEXT_COLOUR_D GColorRajah
-#define TEXT_COLOUR_C GColorYellow
-
 #define TEXT_BUFFER_SIZE 32
 #define BORDER 5
+#define ROUND_REDUCTION 20
 
 static int s_frame = 0;
+
+//static int s_tickerTape = 0;
 
 #define MENU_ITEMS 5
 static int s_textOff = 0;
 char* s_textMain[MENU_ITEMS];
 char* s_textSub[MENU_ITEMS];
 static int s_selectedMenuItem;
+static int s_minOption = 0;
 
 static AppTimer* s_tickTimer;
 
-static int s_arrow[2]; // show arrow
+static bool s_arrowBlink;
 
 static void redraw() {
   layer_mark_dirty(s_mainLayer);
 };
 
-void draw3DText(GContext *ctx, GRect loc, GFont f, const char* buffer, uint8_t offset, GTextAlignment al, bool BWMode, GColor BWFg, GColor BWBg) {
-
-  if (BWMode) graphics_context_set_text_color(ctx, BWBg);
-
-  // corners
-  if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_L);
-  loc.origin.x -= offset; // CL
-  loc.origin.y += offset; // UL
-  if (!BWMode) graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
-
-  if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_U);
-  loc.origin.x += offset; // CU
-  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
-  loc.origin.x += offset; // RU
-  if (!BWMode) graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
-
-
-  if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_R);
-  loc.origin.y -= offset; // CR
-  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
-  loc.origin.y -= offset; // DR
-  if (!BWMode) graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
-
-
-  if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_D);
-  loc.origin.x -= offset; // DC
-  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
-  loc.origin.x -= offset; // DR
-  if (!BWMode) graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
-
-  if (!BWMode) graphics_context_set_text_color(ctx, TEXT_COLOUR_L);
-  loc.origin.y += offset; // CR
-  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
-
-  // main
-  if (BWMode) graphics_context_set_text_color(ctx, BWFg);
-  else graphics_context_set_text_color(ctx, TEXT_COLOUR_C);
-  loc.origin.x += offset; // O
-  graphics_draw_text(ctx, buffer, f, loc, GTextOverflowModeWordWrap, al, NULL);
-}
-
-
 static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
 
   GRect b = layer_get_bounds(thisLayer);
-  GRect titleR = GRect(5, 5, b.size.w - 10, 4 * b.size.h / 10);
+  #ifdef PBL_ROUND
+  // Modify for round screen
+  b.size.w -= ROUND_REDUCTION * 2;
+  b.origin.x += ROUND_REDUCTION;
+  #endif
+
+  GRect titleR = GRect(b.origin.x + 5, 5, b.size.w - 10, 4 * b.size.h / 10);
 
   // Fill back
   graphics_context_set_fill_color(ctx, GColorLightGray);
@@ -115,23 +77,23 @@ static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
 
   // Fill the text
 
-  GRect oreR = GRect(titleR.origin.x + 7,
-    titleR.origin.y - 2,
+  GRect rectA = GRect(titleR.origin.x + 8,
+    titleR.origin.y,
     titleR.size.w-20,
     20);
 
-  GRect swapperR = GRect(titleR.origin.x + 10,
-    titleR.origin.y + 20,
+  GRect rectB = GRect(titleR.origin.x + 10,
+    titleR.origin.y + 23,
     titleR.size.w - 20,
     20);
 
-  static const char txtOre[] = "O r e";
-  static const char txtSwapper[] = "Swapper";
+  static const char txtA[] = "ROCK";
+  static const char txtB[] = "Crush";
 
-  draw3DText(ctx, oreR,     fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK), txtOre, 2, GTextAlignmentLeft, false, GColorBlack, GColorBlack);
-  draw3DText(ctx, swapperR, fonts_get_system_font(FONT_KEY_GOTHIC_28), txtSwapper, 2, GTextAlignmentRight, false, GColorBlack, GColorBlack);
+  draw3DText(ctx, rectA, fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK), txtA, 2, GTextAlignmentLeft, false, GColorBlack, GColorBlack);
+  draw3DText(ctx, rectB, fonts_get_system_font(FONT_KEY_GOTHIC_28), txtB, 2, GTextAlignmentRight, false, GColorBlack, GColorBlack);
 
-  GRect optionsR = GRect(5, b.size.h - (4*b.size.h/10) - 5, b.size.w - 10, 4*b.size.h/10);
+  GRect optionsR = GRect(b.origin.x + 5, b.size.h - (9*b.size.h/20) - 5, b.size.w - 10, 4*b.size.h/10);
   graphics_context_set_fill_color(ctx, GColorLightGray);
   graphics_fill_rect(ctx, optionsR, 10, GCornersAll);
   graphics_context_set_stroke_color(ctx, GColorBlack);
@@ -147,14 +109,54 @@ static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
   graphics_context_set_stroke_width(ctx, 1);
   graphics_draw_round_rect(ctx, inner_wall, 10);
 
+  //Draw arrows
+  if (s_arrowBlink) {
+    graphics_context_set_fill_color(ctx, GColorWhite);
+    if (s_selectedMenuItem > s_minOption) {
+      gpath_move_to(getArrow(kN), GPoint(b.origin.x + 30, b.size.h - (9*b.size.h/20) - 2) );
+      gpath_draw_filled(ctx, getArrow(kN));
+      gpath_draw_outline(ctx, getArrow(kN));
+      gpath_move_to(getArrow(kN), GPoint(b.size.w + b.origin.x - 45, b.size.h - (9*b.size.h/20) - 2) );
+      gpath_draw_filled(ctx, getArrow(kN));
+      gpath_draw_outline(ctx, getArrow(kN));
+    }
+    if (s_selectedMenuItem < MENU_ITEMS-1) {
+      gpath_move_to(getArrow(kS), GPoint(b.origin.x + 30, b.size.h - (b.size.h/20) - 25) );
+      gpath_draw_filled(ctx, getArrow(kS));
+      gpath_draw_outline(ctx, getArrow(kS));
+      gpath_move_to(getArrow(kS), GPoint(b.size.w + b.origin.x - 45, b.size.h - (b.size.h/20) - 25) );
+      gpath_draw_filled(ctx, getArrow(kS));
+      gpath_draw_outline(ctx, getArrow(kS));
+    }
+  }
+
+  //Do ticker
+  // GRect tickR = GRect(b.size.w - s_tickerTape*2, 64, 256, 20);
+  // graphics_context_set_stroke_color(ctx, GColorLightGray);
+  // for (int i = 1; i < N_COLOURS; ++i) {
+  //   graphics_context_set_text_color(ctx, COLOURS[i]);
+  //   graphics_context_set_fill_color(ctx, COLOURS[i]);
+  //   if (i == kBlack) graphics_context_set_text_color(ctx, GColorLightGray);
+  //   gpath_move_to(getShape(i), GPoint(tickR.origin.x, tickR.origin.y+3));
+  //   gpath_draw_filled(ctx, getShape(i));
+  //   gpath_draw_outline(ctx, getShape(i));
+  //   tickR.origin.x += 18;
+  //   graphics_draw_text(ctx, COLOUR_TEXT[i], fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), tickR, GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
+  //   tickR.origin.x += 50;
+  // }
 
 }
 
 void tick(void* data) {
   s_tickTimer = app_timer_register(ANIM_DELAY, tick, NULL);
+  static int v = 0;
 
   if (++s_frame == ANIM_FPS) s_frame = 0;
-  static int v = 0;
+
+  if (s_frame == 0 || s_frame % (ANIM_FPS/2) == 0) {
+    s_arrowBlink = !s_arrowBlink;
+    redraw();
+  }
 
   int desiredOffset = s_selectedMenuItem * 50 * SUB_PIXEL;
 
@@ -184,11 +186,10 @@ void scrollUpdateProc(Layer* thisLayer, GContext *ctx) {
     b.size.h = 50;
 
     draw3DText(ctx, b, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD), s_textMain[i], 1, GTextAlignmentLeft, true, GColorWhite, GColorBlack);
-    //graphics_draw_text(ctx, s_textMain[i], fonts_get_system_font(FONT_KEY_GOTHIC_28), b, GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
 
     b.origin.y += 25;
-    //draw3DText(ctx, b, fonts_get_system_font(FONT_KEY_GOTHIC_24)     , s_textSub[i] , 1, GTextAlignmentRight, true, GColorWhite, GColorBlack);
-    graphics_draw_text(ctx, s_textSub[i], fonts_get_system_font(FONT_KEY_GOTHIC_24), b, GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
+    graphics_context_set_text_color(ctx, GColorBlack);
+    graphics_draw_text(ctx, s_textSub[i], fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD), b, GTextOverflowModeWordWrap, GTextAlignmentRight, NULL);
 
   }
 }
@@ -224,15 +225,12 @@ void setText() {
 void splashWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
   ButtonId button = click_recognizer_get_button_id(recognizer);
 
-  int minOption = 0;
-  if (getGameInProgress() == false) minOption = 1;
-
-  if      (BUTTON_ID_UP     == button) --s_selectedMenuItem;
-  else if (BUTTON_ID_DOWN   == button) ++s_selectedMenuItem;
+  if      (BUTTON_ID_UP     == button && s_selectedMenuItem > s_minOption) --s_selectedMenuItem;
+  else if (BUTTON_ID_DOWN   == button && s_selectedMenuItem < MENU_ITEMS-1) ++s_selectedMenuItem;
   else if (BUTTON_ID_SELECT == button) {
     switch (s_selectedMenuItem) {
       case 0: newGame(true); pushMainWindow(); return;
-      case 1: APP_LOG(APP_LOG_LEVEL_WARNING,"A"); newGame(false); APP_LOG(APP_LOG_LEVEL_WARNING,"F"); pushMainWindow(); break;
+      case 1: APP_LOG(APP_LOG_LEVEL_WARNING,"LOAD"); newGame(false); pushMainWindow(); return;
       case 2: setTiltStatus( getTiltStatus() + 1 ); break;
       case 3: setBacklightStatus( getBacklightStatus() + 1 ); break;
       case 4: setHintStatus( getHintStatus() + 1 ); break;
@@ -240,13 +238,6 @@ void splashWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
     setText();
   }
 
-  if (s_selectedMenuItem < 0) s_selectedMenuItem = MENU_ITEMS-1;
-  else if (s_selectedMenuItem >= MENU_ITEMS) s_selectedMenuItem = minOption;
-
-  s_arrow[0] = 1;
-  s_arrow[1] = 1;
-  if (s_selectedMenuItem == minOption) s_arrow[0] = 0;
-  else if (s_selectedMenuItem == MENU_ITEMS-1) s_arrow[1] = 0;
 }
 
 void splashWindowClickConfigProvider(Window *window) {
@@ -267,7 +258,13 @@ void splashWindowLoad(Window* parentWindow) {
   layer_add_child(window_get_root_layer(parentWindow), s_mainLayer);
   layer_set_update_proc(s_mainLayer, splashUpdateProc);
 
-  s_scrollLayer = layer_create( GRect(3*BORDER, h - (4*h/10) - 2, b.size.w - 6*BORDER, (4*h/10) - BORDER - 1) );
+  #ifdef PBL_ROUND
+  // Modify for round screen
+  b.size.w -= ROUND_REDUCTION * 2;
+  b.origin.x += ROUND_REDUCTION;
+  #endif
+
+  s_scrollLayer = layer_create( GRect(b.origin.x + 3*BORDER, h - (9*h/20) - 2, b.size.w - 6*BORDER, (4*h/10) - BORDER - 1) );
   layer_add_child(s_mainLayer, s_scrollLayer);
   layer_set_clips(s_scrollLayer, true);
   layer_set_update_proc(s_scrollLayer, scrollUpdateProc);
@@ -278,11 +275,16 @@ void splashWindowLoad(Window* parentWindow) {
   }
   setText();
 
-  s_selectedMenuItem = getGameInProgress() ? 0 : 1;
+  if (getGameInProgress() == false) {
+    s_selectedMenuItem = 1;
+    s_minOption = 1;
+  } else {
+    s_selectedMenuItem = 0;
+    s_minOption = 0;
+  }
   s_textOff =  s_selectedMenuItem * 50 * SUB_PIXEL;
 
   startSplashTick();
-
 }
 
 void startSplashTick() {
