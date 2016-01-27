@@ -66,12 +66,12 @@ static void redraw() {
 // Two points per square in a match 4
 #define SCORE_4 6
 //Note this is bonus on top of two x SCORE_3's
-#define SCORE_T 3
+#define SCORE_T 6
 // Two points per square clearing a row/col
 #define SCORE_ROW BOARD_PIECES_X
 #define SCORE_COLUMN BOARD_PIECES_Y
 // Two points _per exploded piece_
-#define SCORE_BOOM 2
+#define SCORE_BOOM 5
 void score(MatchType_t type, int n) {
   int b4 = s_score.pointBuffer;
   int M = (s_score.level + 1) / 2; // Bonuses are worth more in later levels
@@ -469,7 +469,7 @@ void enableHint(void* data) {
 }
 
 // Find a next legal move
-#define HINT_TIMER MS_IN_SEC*20
+#define HINT_TIMER MS_IN_SEC*15
 bool findNextMove() {
   bool foundMove = false;
   for (int x=0; x < BOARD_PIECES_X; ++x) {
@@ -594,11 +594,7 @@ bool checkScoreBuffer() {
 
   s_wave[0].origin.y = (s_windowSizeY) * SUB_PIXEL; //size 10
   s_wave[1].origin.y = (s_windowSizeY + 20) * SUB_PIXEL; // gap 10, size 15
-  s_wave[2].origin.y = (s_windowSizeY + 45) * SUB_PIXEL; // gap 10, size 20
-  s_waveV = 0;
-
-  APP_LOG(APP_LOG_LEVEL_INFO, "buffer has: %i, tot points: %i, pointsToNextLevel: %i", s_score.pointBuffer, s_score.points, s_score.pointsToNextLevel );
-
+  s_wave[2].origin.y = (s_
 
   s_score.points += s_score.pointBuffer;
   s_score.pointBuffer = 0;
@@ -608,7 +604,7 @@ bool checkScoreBuffer() {
   int fraction = 100 - ((s_score.points * SUB_PIXEL) / s_score.pointsToNextLevel); // 0 - 100
   s_liquidEnd = (fraction * s_windowSizeY);// [don't divide through, keep in subpixel]  / SUB_PIXEL;
 
-  APP_LOG(APP_LOG_LEVEL_INFO, "fraction: %i, nWaves: %i, Y: %i, Ysp: %i", fraction, s_nWaves, s_liquidEnd/SUB_PIXEL, s_liquidEnd);
+  //APP_LOG(APP_LOG_LEVEL_INFO, "fraction: %i, nWaves: %i, Y: %i, Ysp: %i", fraction, s_nWaves, s_liquidEnd/SUB_PIXEL, s_liquidEnd);
 
   s_scoreState = kApplyPoints;
   return false;
@@ -629,7 +625,7 @@ void updateLevelColour() {
   s_colourBackground = s_score.level - 1;
   while (s_colourForground >= N_LEVEL_COLOURS) s_colourForground -= N_LEVEL_COLOURS;
   while (s_colourBackground >= N_LEVEL_COLOURS) s_colourBackground -= N_LEVEL_COLOURS;
-  APP_LOG(APP_LOG_LEVEL_INFO, "Updated colours %i %i", s_colourForground, s_colourBackground);
+  //APP_LOG(APP_LOG_LEVEL_INFO, "Updated colours %i %i", s_colourForground, s_colourBackground);
 }
 
 bool checkNewLevel() {
@@ -639,7 +635,7 @@ bool checkNewLevel() {
     switch (++s_score.level) {
         case 3: s_score.nColoursActive = 6; break;
         case 6: s_score.nColoursActive = 7; break;
-        case 12: s_score.nColoursActive = 8; break;
+        case 16: s_score.nColoursActive = 8; break;
         default: break;
     }
     updateLevelColour();
