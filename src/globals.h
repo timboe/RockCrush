@@ -6,7 +6,6 @@
 #define ANIM_FRAMES ANIM_FPS*ANIM_DURATION
 #define ANIM_DELAY MS_IN_SEC/ANIM_FPS
 #define GRAVITY 35
-//static int s_animateFrames = 0;
 
 #define SUB_PIXEL 100
 
@@ -16,7 +15,7 @@
   #define BOARD_PIECES_Y 9
 #else
   // Round - 8 deep
-  #define BOARD_PIECES_Y 9
+  #define BOARD_PIECES_Y 8
 #endif
 #define PIECE_PIXELS 15
 #define PIECE_SUB_PIXELS PIECE_PIXELS*SUB_PIXEL
@@ -29,6 +28,8 @@
 #define TEXT_COLOUR_R GColorRajah
 #define TEXT_COLOUR_D GColorRajah
 #define TEXT_COLOUR_C GColorYellow
+
+#define HINT_TIMER MS_IN_SEC*8
 
 // max is 7
 #define N_COLOURS 11

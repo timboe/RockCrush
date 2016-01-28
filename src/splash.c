@@ -82,13 +82,13 @@ static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
     titleR.size.w-20,
     20);
 
-  GRect rectB = GRect(titleR.origin.x + 10,
+  GRect rectB = GRect(titleR.origin.x + 6,
     titleR.origin.y + 23,
     titleR.size.w - 20,
     20);
 
   static const char txtA[] = "ROCK";
-  static const char txtB[] = "Crush";
+  static const char txtB[] = "Crusher";
 
   draw3DText(ctx, rectA, fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK), txtA, 2, GTextAlignmentLeft, false, GColorBlack, GColorBlack);
   draw3DText(ctx, rectB, fonts_get_system_font(FONT_KEY_GOTHIC_28), txtB, 2, GTextAlignmentRight, false, GColorBlack, GColorBlack);
