@@ -587,8 +587,11 @@ bool removeAndReplace() {
 }
 
 bool awaitingDirection() {
-  if (s_frame == ANIM_FPS/2 || s_frame == 0) {
-    s_flashArrows = !s_flashArrows;
+  if (s_frame == 0) {
+    s_flashArrows = true;
+    return true; // Flashing cursor only
+  } else if (s_frame == ANIM_FPS/2) {
+    s_flashArrows = false;
     return true; // Flashing cursor only
   }
   return false;
@@ -635,8 +638,7 @@ bool applyPoints() {
 void updateLevelColour() {
   s_colourFourground = s_score.level % N_LEVEL_COLOURS;
   s_colourBackground = (s_score.level - 1) % N_LEVEL_COLOURS;
-  APP_LOG(APP_LOG_LEVEL_INFO, "LEVEL %i: (nCol %i) FG and BG colours : %i %i", s_score.level, N_LEVEL_COLOURS, s_colourFourground, s_colourBackground);
-
+  //APP_LOG(APP_LOG_LEVEL_INFO, "LEVEL %i: (nCol %i) FG and BG colours : %i %i", s_score.level, N_LEVEL_COLOURS, s_colourFourground, s_colourBackground);
 }
 
 bool checkNewLevel() {
@@ -850,6 +852,7 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
 
     if (BUTTON_ID_UP == button && s_gameState == kIdle) {
       s_gameState = kAwaitingDirection;
+      s_frame = ANIM_FPS-1;
       s_switch.first = s_cursor;
     } else if (BUTTON_ID_BACK == button) {
       pushSplashWindow();

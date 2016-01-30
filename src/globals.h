@@ -1,8 +1,8 @@
 #pragma once
 #include <pebble.h>
 
-#define DEBUG_MODE
-#define AUTO_MODE
+//#define DEBUG_MODE
+//#define AUTO_MODE
 
 #define MS_IN_SEC 1000
 #define ANIM_FPS 24
