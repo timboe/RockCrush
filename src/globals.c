@@ -51,11 +51,6 @@ const GPathInfo shapeWhite = {
   .points = (GPoint []) {{5, 2}, {10, 2}, {13, 5}, {13, 10}, {10, 13}, {5, 13}, {2, 10}, {2, 5}}
 };
 
-const GPathInfo shapeBlack = {
-  .num_points = 6,
-  .points = (GPoint []) {{2, 2}, {7, 7}, {13, 2}, {12, 13}, {7, 8}, {2, 13}}
-};
-
 const GPathInfo shapeN = {
   .num_points = 4,
   .points = (GPoint []) {{0, -1}, {15, -1}, {9, -8}, {6, -8}}
@@ -76,19 +71,6 @@ const GPathInfo shapeW = {
   .points = (GPoint []) {{-1, 0}, {-1, 15}, {-8, 9}, {-8, 6}}
 };
 
-// const char* const COLOUR_TEXT[N_COLOURS] = {
-//   "blank",
-//   "SPIKY",
-//   "STICKY",
-//   "BLU",
-//   "PAPEY",
-//   "POINTY",
-//   "SHINY",
-//   "PINKY",
-//   "PURE",
-//   "SOOTY"
-// };
-
 GColor COLOURS[N_COLOURS];
 
 void initGlobals() {
@@ -103,16 +85,16 @@ void initGlobals() {
   s_shapes[kBlue] = gpath_create(&shapeBlue);
   s_shapes[kBrown] = gpath_create(&shapeBrown);
 
-  COLOURS[kRed] = GColorRed;
-  COLOURS[kOrange] = GColorOrange;
-  COLOURS[kGreen] = GColorGreen;
-  COLOURS[kWhite] = GColorWhite;
-  COLOURS[kBlack] = GColorBlack;
-  COLOURS[kPink] = GColorMagenta;
-  COLOURS[kYellow] = GColorYellow;
-  COLOURS[kPurple] = GColorCyan;
-  COLOURS[kBlue] = GColorElectricUltramarine;
-  COLOURS[kBrown] = GColorImperialPurple;
+  COLOURS[kRed] = COLOR_FALLBACK(GColorRed, GColorBlack);
+  COLOURS[kOrange] = COLOR_FALLBACK(GColorOrange, GColorLightGray);
+  COLOURS[kGreen] = COLOR_FALLBACK(GColorGreen, GColorWhite);
+  COLOURS[kWhite] = COLOR_FALLBACK(GColorWhite, GColorWhite);
+  COLOURS[kBlack] = COLOR_FALLBACK(GColorBlack, GColorBlack);
+  COLOURS[kPink] = COLOR_FALLBACK(GColorMagenta, GColorBlack);
+  COLOURS[kYellow] = COLOR_FALLBACK(GColorYellow, GColorWhite);
+  COLOURS[kPurple] = COLOR_FALLBACK(GColorCyan, GColorWhite);
+  COLOURS[kBlue] = COLOR_FALLBACK(GColorElectricUltramarine, GColorLightGray);
+  COLOURS[kBrown] = COLOR_FALLBACK(GColorImperialPurple, GColorBlack);
 
   s_arrows[kN] = gpath_create(&shapeN);
   s_arrows[kE] = gpath_create(&shapeE);

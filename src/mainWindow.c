@@ -14,10 +14,12 @@ static int s_nWaves = 0;
 static int s_liquidEnd = 0;
 static int s_windowSizeY = 0;
 
-static bool s_autoMode = 0;
 static int s_frame = 0;
 
 static int s_tiltMode = 0;
+
+static bool s_hintOn = false;
+static bool s_hintStatus = false;
 
 static AppTimer* s_hintTimer = NULL;
 static AppTimer* s_gameLoopTime = NULL;
@@ -37,6 +39,8 @@ static GPoint s_cursor = {0,0};
 static GPoint s_motionCursor = {400,400};
 static GPoint s_availableMove = {-1,-1};
 
+static bool s_flashArrows = false;
+
 //static GPoint s_bombLocation[N_COLOURS];
 static int s_spentLifeAnimRadius = 0;
 static const Colour_t s_extraLifeBoomColour[3] = {kRed, kYellow, kGreen};
@@ -51,8 +55,7 @@ static int s_currentRun;
 static GameState_t s_gameState = kIdle; // Game FSM
 static ScoreState_t s_scoreState = kWait;
 
-// This is backdrop colours
-#define N_LEVEL_COLOURS 13
+
 
 Score_t* getScore() { return &s_score; };
 Piece_t* getPiece() { return &s_pieces[0]; }
@@ -86,28 +89,28 @@ void score(MatchType_t type, int n) {
     case kMatch4: s_score.pointBuffer += SCORE_4 + M; break; // Note - plus sign - nerfed
     case kMatchT: s_score.pointBuffer += SCORE_T * M; break;
   }
-  APP_LOG(APP_LOG_LEVEL_INFO, "points enum %i scored %i", type, s_score.pointBuffer - b4);
+  //APP_LOG(APP_LOG_LEVEL_INFO, "points enum %i scored %i", type, s_score.pointBuffer - b4);
 }
 
 // Do these three colours form a valid run?
 bool checkTriplet(Colour_t a, Colour_t b, Colour_t switchColour) {
-    if (a == kNONE || b == kNONE || switchColour == kNONE) return false; // All must be coloured
-    if (switchColour == kBlack) { APP_LOG(APP_LOG_LEVEL_DEBUG, "Y-black"); return true; } // A switch with black is always valid
+  if (a == kNONE || b == kNONE || switchColour == kNONE) return false; // All must be coloured
+  if (switchColour == kBlack) { /*APP_LOG(APP_LOG_LEVEL_DEBUG, "Y-black");*/ return true; } // A switch with black is always valid
 
-    int nWhite = 0;
-    if (a == kWhite) ++nWhite;
-    if (b == kWhite) ++nWhite;
-    if (switchColour == kWhite) ++nWhite;
+  int nWhite = 0;
+  if (a == kWhite) ++nWhite;
+  if (b == kWhite) ++nWhite;
+  if (switchColour == kWhite) ++nWhite;
 
-    if (nWhite > 1) {
-      return true; //must be WcW for WWc or cWW hence must be true, in fact will auto-fire so this statement should never come into effect
-    } else if (nWhite == 1) {
-      if (a == b || b == switchColour || switchColour == a) return true; // White fills the gap
-    } else {
-      if (a == b && b  == switchColour) return true;  // No white, all three must match
-    }
+  if (nWhite > 1) {
+    return true; //must be WcW for WWc or cWW hence must be true, in fact will auto-fire so this statement should never come into effect
+  } else if (nWhite == 1) {
+    if (a == b || b == switchColour || switchColour == a) return true; // White fills the gap
+  } else {
+    if (a == b && b  == switchColour) return true;  // No white, all three must match
+  }
 
-    return false;
+  return false;
 }
 
 void switchColours(GPoint a, GPoint b) {
@@ -143,7 +146,6 @@ bool checkLocation(GPoint location) {
       continue;
     }
 
-    //APP_LOG(APP_LOG_LEVEL_DEBUG, "Check #%i", check);
     bool isValid = checkTriplet(
       s_pieces[XY(location.x+xA, location.y+yA)].colour,
       s_pieces[XY(location.x+xB, location.y+yB)].colour,
@@ -178,7 +180,7 @@ bool checkMove() {
   if (isValid == true) {
     s_currentRun = 0;
     s_gameState = kSwapAnimate;
-    s_score.hintOn = 0;
+    s_hintOn = false;
     if (s_hintTimer) app_timer_cancel(s_hintTimer);
     s_hintTimer = NULL;
   } else {
@@ -203,8 +205,6 @@ void updateSwitchPiecePhysics(int v) {
   }
 }
 
-
-#define NUDGE_MAX_SPEED 90
 bool nudgeAnimate() {
   static int v = 0, mode = 0;
   static GPoint firstStart, secondStart;
@@ -243,7 +243,7 @@ bool swapAnimate() {
     secondStart = s_pieces[ XYp(s_switch.second) ].loc;
     mode = 1;
     travel = 0;
-    v = 80; // TWEAK
+    v = SWAP_STARTING_VELOCITY; // TWEAK starting velocity
   } else if (mode == 1) {
     v += GRAVITY*2;
     travel += v;
@@ -281,17 +281,17 @@ bool isSwitch(int x, int y) {
 void explode(MatchType_t dir, int x, int y, Colour_t c) {
   int n = 0; // number of exploded
   if (dir == kRow) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE ROW %i", y);
-    for (int X = 0; X < BOARD_PIECES_X; ++X) s_pieces[XY(X,y)].match = kExploded;
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE ROW %i", y);
+    for (int X = 0; X < BOARD_PIECES_X; ++X) s_pieces[XY(X,y)].exploded = true;
   } else if (dir == kColumn){
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE COLUMN %i", x);
-    for (int Y = 0; Y < BOARD_PIECES_Y; ++Y) s_pieces[XY(x,Y)].match = kExploded;
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE COLUMN %i", x);
+    for (int Y = 0; Y < BOARD_PIECES_Y; ++Y) s_pieces[XY(x,Y)].exploded = true;
   } else if (dir == kCross){
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE CROSS %i %i", x, y);
-    for (int Y = 0; Y < BOARD_PIECES_Y; ++Y) s_pieces[XY(x,Y)].match = kExploded;
-    for (int X = 0; X < BOARD_PIECES_X; ++X) s_pieces[XY(X,y)].match = kExploded;
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE CROSS %i %i", x, y);
+    for (int Y = 0; Y < BOARD_PIECES_Y; ++Y) s_pieces[XY(x,Y)].exploded = true;
+    for (int X = 0; X < BOARD_PIECES_X; ++X) s_pieces[XY(X,y)].exploded = true;
   } else if (dir == kBOOM) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE BIG %i %i", x, y);
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE BIG %i %i", x, y);
     for (int X = x-2; X <= x+2; ++X) {
       for (int Y = y-2; Y <= y+2; ++Y) {
         if (X < 0 || X >= BOARD_PIECES_X) continue;
@@ -300,28 +300,28 @@ void explode(MatchType_t dir, int x, int y, Colour_t c) {
         if (X == x+2 && Y == y+2) continue;
         if (X == x-2 && Y == y+2) continue;
         if (X == x+2 && Y == y-2) continue;
-        s_pieces[XY(X,Y)].match = kExploded;
+        s_pieces[XY(X,Y)].exploded = true;
         ++n;
       }
     }
   } else if (dir == kColourBoom) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE COLOUR %i", c);
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE COLOUR %i", c);
     for (int X = 0; X < BOARD_PIECES_X; ++X) {
       for (int Y = 0; Y < BOARD_PIECES_Y; ++Y) {
         if (s_pieces[XY(X,Y)].colour == c) {
-          s_pieces[XY(X,Y)].match = kExploded;
+          s_pieces[XY(X,Y)].exploded = true;
           ++n;
         }
       }
     }
   } else if (dir == kMiniBoom) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE SMALL %i %i col:%i", x, y, c);
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "EXPLODE SMALL %i %i col:%i", x, y, c);
     for (int X = x-2; X <= x+2; ++X) {
       for (int Y = y-2; Y <= y+2; ++Y) {
         if (X < 0 || X >= BOARD_PIECES_X) continue;
         if (Y < 0 || Y >= BOARD_PIECES_Y) continue;
         if (s_pieces[XY(X,Y)].colour == c) {
-          s_pieces[XY(X,Y)].match = kExploded;
+          s_pieces[XY(X,Y)].exploded = true;
           ++n;
         }
       }
@@ -344,22 +344,23 @@ bool findMatches() {
       explode(kBOOM, s_switch.second.x, s_switch.second.y, 0);
       matchesFound = true;
     } else if (s_pieces[XYp(s_switch.first)].colour == kWhite && s_pieces[XYp(s_switch.second)].colour == kBlack) { //White black
-      explode(kCross, s_switch.first.x, s_switch.first.y, 0);
+      explode(kCross, s_switch.second.x, s_switch.second.y, 0);
       matchesFound = true;
     } else if (s_pieces[XYp(s_switch.first)].colour == kBlack && s_pieces[XYp(s_switch.second)].colour == kWhite) { //Black white
       explode(kCross, s_switch.second.x, s_switch.second.y, 0);
       matchesFound = true;
     } else if (s_pieces[XYp(s_switch.first)].colour == kBlack) { // Single black A
       explode(kMiniBoom, s_switch.second.x, s_switch.second.y, s_pieces[XYp(s_switch.second)].colour);
-      s_pieces[XYp(s_switch.first)].match = kExploded;
+      s_pieces[XYp(s_switch.first)].exploded = true;
       matchesFound = true;
     } else if (s_pieces[XYp(s_switch.second)].colour == kBlack) { // Single black B
       explode(kMiniBoom, s_switch.first.x, s_switch.first.y, s_pieces[XYp(s_switch.first)].colour);
-      s_pieces[XYp(s_switch.second)].match = kExploded;
+      s_pieces[XYp(s_switch.second)].exploded = true;
       matchesFound = true;
     }
   }
 
+  // Markup the board
   for (int dir = 0; dir < 2; ++dir) { // x or y
 
     int xStop = 0, yStop = 0, max = 0;
@@ -373,7 +374,6 @@ bool findMatches() {
 
     for (int x=0; x < BOARD_PIECES_X - xStop; ++x) {
       for (int y=0; y < BOARD_PIECES_Y - yStop; ++y) {
-        if (s_pieces[XY(x,y)].match == kExploded) continue; // Don't check if s'ploded
 
         // Find a run
         int runSize = 1, nextX, nextY;
@@ -386,9 +386,7 @@ bool findMatches() {
         }
 
         Colour_t runColour = s_pieces[XY(x,y)].colour;
-
         while (1) {
-          if ( s_pieces[XY(nextX,nextY)].match == kExploded ) break; // We can't match an exploded
           if (runColour == kWhite) runColour = s_pieces[XY(nextX,nextY)].colour; // If first colour(s) were white - need to update to know colour of run
 
           if      ( s_pieces[XY(nextX,nextY)].colour == runColour) {} // Progress - Same colour
@@ -397,24 +395,23 @@ bool findMatches() {
 
           ++runSize; // Square accepted
           if (dir == 0) {
-            if (++nextY == max) break; // This is where the asymmetric grid bug was hiding before
+            if (++nextY == max) break; // This is where the asymmetric grid bug was hiding before, only compare one
           } else {
             if (++nextX == max) break;
           }
         }
 
         if (runSize > 4) {
-          // Find colour
-          explode(kColourBoom, 0, 0, runColour);
+          explode(kColourBoom, 0, 0, runColour); // do colour BOOM
           matchesFound = true;
         } else if (runSize > 2) {
           if (runColour == kBlack) { // Special - three blacks? Very rare, but deserves a big explosion! Like an extended black-black match
-            APP_LOG(APP_LOG_LEVEL_DEBUG,"MATCH-3-or-4-BLACK!!!!");
+            //APP_LOG(APP_LOG_LEVEL_DEBUG,"MATCH-3-or-4-BLACK!!!!");
             if  (dir == 0) for (int P=y; P < nextY; ++P) explode(kBOOM, x, P, 0);
             else           for (int P=x; P < nextX; ++P) explode(kBOOM, P, y, 0);
             matchesFound = true;
           } else {
-            APP_LOG(APP_LOG_LEVEL_DEBUG,"MATCH-3-or-4");
+            //APP_LOG(APP_LOG_LEVEL_DEBUG,"MATCH-3-or-4");
             runSize == 3 ? score(kMatch3, 0) : score(kMatch4, 0);
             if  (dir == 0) for (int P=y; P < nextY; ++P) s_pieces[XY(x,P)].match++; // A piece can be matched up to twice
             else           for (int P=x; P < nextX; ++P) s_pieces[XY(P,y)].match++;
@@ -424,7 +421,7 @@ bool findMatches() {
 
         //Promote white
         if (runSize == 4) { // We promote the switched piece if user instagated, or the final piece if part of a cascade
-          APP_LOG(APP_LOG_LEVEL_DEBUG,"PROMOTE WHITE");
+          //APP_LOG(APP_LOG_LEVEL_DEBUG,"PROMOTE WHITE");
           if  (dir == 0) {
             for (int P=y; P < nextY; ++P) {
               if (isSwitch(x,P) || P == nextY-1) {
@@ -455,7 +452,7 @@ bool findMatches() {
       if (s_pieces[XY(x,y)].match == kMatchedTwice) {
         score(kMatchT, 0); // This is a bonus on top of the 2x match-3 / match-4s
         s_pieces[XY(x,y)].promoteFlag = kBlack; // This can in theory overwrite a promote white command
-        APP_LOG(APP_LOG_LEVEL_DEBUG,"PROMOTE BLACK");
+        //APP_LOG(APP_LOG_LEVEL_DEBUG,"PROMOTE BLACK");
       }
     }
   }
@@ -466,7 +463,7 @@ bool findMatches() {
 
   if (matchesFound == true) { // Remove and repeat, continue to cascade until no runs remain
     s_gameState = kFlashRemoved;
-    ++s_currentRun;
+    if (s_currentRun < ANIM_FPS/3) ++s_currentRun; // This makes things faster if more matches are found
   } else { // No more runs
      s_gameState = kFindNextMove; // Let the comp try and find a valid move, if any
    }
@@ -475,7 +472,7 @@ bool findMatches() {
 }
 
 void enableHint(void* data) {
-  s_score.hintOn = 1;
+  s_hintOn = true;
   redraw();
   s_hintTimer = NULL;
 }
@@ -503,7 +500,9 @@ bool findNextMove() {
   if (foundMove == true) { // There is a legal move somewhere on the board, we'll take note of it in case the user is dumb and can't find it on their own
     s_availableMove = s_switch.first;
     s_gameState = kIdle;
-    if (s_autoMode == true) s_gameState = kCheckMove; // This ONE line lets the pebble play automatically, love that
+    #ifdef AUTO_MODE
+    s_gameState = kCheckMove; // This ONE line lets the pebble play automatically, love that
+    #endif
     s_hintTimer = app_timer_register(HINT_TIMER, enableHint, NULL); // Pops up a hint in the future
   } else { // Oh dear, there are no legal swaps left on the board. Hope the user has some lives left!
     s_availableMove = GPoint(-1,-1);
@@ -551,10 +550,14 @@ bool removeAndReplace() {
   // REMOVE
   for (int x=0; x < BOARD_PIECES_X; ++x) {
     for (int y=BOARD_PIECES_Y-1; y >= 0; --y) {
-      if      (s_pieces[XY(x,y)].promoteFlag != kNONE)      s_pieces[XY(x,y)].colour = s_pieces[XY(x,y)].promoteFlag;
-      else if (s_pieces[XY(x,y)].match       != kUnmatched) s_pieces[XY(x,y)].colour = kNONE; // I'm effectivly dead now
+      if (s_pieces[XY(x,y)].promoteFlag != kNONE) {
+        s_pieces[XY(x,y)].colour = s_pieces[XY(x,y)].promoteFlag;
+      } else if (s_pieces[XY(x,y)].match != kUnmatched || s_pieces[XY(x,y)].exploded == true) {
+        s_pieces[XY(x,y)].colour = kNONE; // I'm effectivly dead now
+      }
       s_pieces[XY(x,y)].promoteFlag = kNONE;
       s_pieces[XY(x,y)].match = kUnmatched;
+      s_pieces[XY(x,y)].exploded = false;
     }
   }
   // REPLACE
@@ -578,13 +581,16 @@ bool removeAndReplace() {
       }
     }
   }
-  APP_LOG(APP_LOG_LEVEL_DEBUG,"END MOVE");
+  //APP_LOG(APP_LOG_LEVEL_DEBUG,"END MOVE");
   s_gameState = kSettleBoard;
   return false; // don't redraw, settle board does all the animation
 }
 
 bool awaitingDirection() {
-  if (s_frame % ANIM_FPS/2 == 0 || s_frame == 0) return true; // Flashing cursor only
+  if (s_frame == ANIM_FPS/2 || s_frame == 0) {
+    s_flashArrows = !s_flashArrows;
+    return true; // Flashing cursor only
+  }
   return false;
 }
 
@@ -627,10 +633,10 @@ bool applyPoints() {
 }
 
 void updateLevelColour() {
-  s_colourFourground = s_score.level;
-  s_colourBackground = s_score.level - 1;
-  while (s_colourFourground >= N_LEVEL_COLOURS) s_colourFourground -= N_LEVEL_COLOURS;
-  while (s_colourBackground >= N_LEVEL_COLOURS) s_colourBackground -= N_LEVEL_COLOURS;
+  s_colourFourground = s_score.level % N_LEVEL_COLOURS;
+  s_colourBackground = (s_score.level - 1) % N_LEVEL_COLOURS;
+  APP_LOG(APP_LOG_LEVEL_INFO, "LEVEL %i: (nCol %i) FG and BG colours : %i %i", s_score.level, N_LEVEL_COLOURS, s_colourFourground, s_colourBackground);
+
 }
 
 bool checkNewLevel() {
@@ -649,7 +655,7 @@ bool checkNewLevel() {
   }
   s_nWaves = 0;
   s_scoreState = kWait;
-  APP_LOG(APP_LOG_LEVEL_INFO, "Wave animation done");
+  //APP_LOG(APP_LOG_LEVEL_INFO, "Wave animation done");
   return true;
 }
 
@@ -789,6 +795,9 @@ void newGame(bool doLoadGame) {
     s_score.lives = 3;
     s_score.pointsToNextLevel = 200;
     s_score.nColoursActive = 5;
+    #ifdef DEBUG_MODE
+    s_score.nColoursActive = 3; // Allows to test long runs and interaction of special pieces with ease
+    #endif
   }
   updateLevelColour();
 
@@ -809,6 +818,7 @@ void newGame(bool doLoadGame) {
   }
 
   checkTiltMode();
+  s_hintStatus = getHintStatus();  // Only want to read this once from store
   s_scoreState = kWait;
   s_gameState = kSettleBoard;
   s_gameOverMessage = false;
@@ -834,7 +844,7 @@ void mainWindowClickHandler(ClickRecognizerRef recognizer, void *context) {
         if (++s_cursor.x >= BOARD_PIECES_X) s_cursor.x = 0;
       }
     } else {
-      if      (BUTTON_ID_DOWN == button)   s_motionCursor.y -= PIECE_SUB_PIXELS; // Manipulation of white dot cursor
+      if      (BUTTON_ID_DOWN == button)   s_motionCursor.y += PIECE_SUB_PIXELS; // Manipulation of white dot cursor
       else if (BUTTON_ID_SELECT == button) s_motionCursor.x += PIECE_SUB_PIXELS;
     }
 
@@ -858,22 +868,27 @@ void mainWindowClickConfigProvider(Window *window) {
 }
 
 void setFillColour(GContext *ctx, int i) {
-  switch (i) {
-    case 0: graphics_context_set_fill_color(ctx, GColorTiffanyBlue); break;
-    case 1: graphics_context_set_fill_color(ctx, GColorMediumAquamarine); break;
-    case 2: graphics_context_set_fill_color(ctx, GColorVividCerulean); break;
-    case 3: graphics_context_set_fill_color(ctx, GColorSpringBud); break;
-    case 4: graphics_context_set_fill_color(ctx, GColorBlueMoon); break;
-    case 5: graphics_context_set_fill_color(ctx, GColorYellow); break;
-    case 6: graphics_context_set_fill_color(ctx, GColorChromeYellow); break;
-    case 7: graphics_context_set_fill_color(ctx, GColorSunsetOrange); break;
-    case 8: graphics_context_set_fill_color(ctx, GColorMelon); break;
-    case 9: graphics_context_set_fill_color(ctx, GColorPurple); break;
-    case 10: graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender); break;
-    case 11: graphics_context_set_fill_color(ctx, GColorLiberty); break;
-    case 12: graphics_context_set_fill_color(ctx, GColorWhite); break;
-    default: graphics_context_set_fill_color(ctx, GColorRed); break;
-  }
+  #ifdef PBL_BW
+    if (i == 0) graphics_context_set_fill_color(ctx, GColorWhite);
+    else graphics_context_set_fill_color(ctx, GColorLightGray);
+  #else
+    switch (i) {
+      case 0: graphics_context_set_fill_color(ctx, GColorTiffanyBlue); break;
+      case 1: graphics_context_set_fill_color(ctx, GColorMediumAquamarine); break;
+      case 2: graphics_context_set_fill_color(ctx, GColorVividCerulean); break;
+      case 3: graphics_context_set_fill_color(ctx, GColorSpringBud); break;
+      case 4: graphics_context_set_fill_color(ctx, GColorBlueMoon); break;
+      case 5: graphics_context_set_fill_color(ctx, GColorYellow); break;
+      case 6: graphics_context_set_fill_color(ctx, GColorChromeYellow); break;
+      case 7: graphics_context_set_fill_color(ctx, GColorSunsetOrange); break;
+      case 8: graphics_context_set_fill_color(ctx, GColorMelon); break;
+      case 9: graphics_context_set_fill_color(ctx, GColorPurple); break;
+      case 10: graphics_context_set_fill_color(ctx, GColorRichBrilliantLavender); break;
+      case 11: graphics_context_set_fill_color(ctx, GColorLiberty); break;
+      case 12: graphics_context_set_fill_color(ctx, GColorWhite); break;
+      default: graphics_context_set_fill_color(ctx, GColorRed); break;
+    }
+  #endif
 }
 
 static void mainBackgroundUpdateProc(Layer* this_layer, GContext *ctx) {
@@ -932,12 +947,12 @@ static void mainForegroundUpdateProc(Layer* this_layer, GContext *ctx) {
     GColor in;
     GColor out;
     if (s_score.lives >= (3 - L)) {
-      if (L == 0) { in = GColorMintGreen; out = GColorDarkGreen; }
-      else if (L == 1) { in = GColorRajah; out = GColorWindsorTan; }
-      else { in = GColorMelon; out = GColorDarkCandyAppleRed; }
+      if (L == 0) { in = COLOR_FALLBACK(GColorMintGreen, GColorWhite); out = COLOR_FALLBACK(GColorDarkGreen, GColorBlack); }
+      else if (L == 1) { in = COLOR_FALLBACK(GColorRajah, GColorWhite); out = COLOR_FALLBACK(GColorWindsorTan, GColorBlack); }
+      else { in = COLOR_FALLBACK(GColorMelon, GColorWhite); out = COLOR_FALLBACK(GColorDarkCandyAppleRed, GColorBlack); }
     } else {
-      in = GColorLightGray;
-      out = GColorDarkGray;
+      in = COLOR_FALLBACK(GColorLightGray, GColorBlack);
+      out = COLOR_FALLBACK(GColorDarkGray, GColorBlack);
     }
     GPoint p = lives;
     p.x += PIECE_PIXELS * L;
@@ -949,7 +964,7 @@ static void mainForegroundUpdateProc(Layer* this_layer, GContext *ctx) {
     // Animation?
     if (s_spentLifeAnimRadius > 0 && s_score.lives == (3 - L)) {
       graphics_context_set_stroke_width(ctx, 5);
-      graphics_context_set_stroke_color(ctx, in);
+      graphics_context_set_stroke_color(ctx, COLOR_FALLBACK(in,out));
       graphics_draw_circle(ctx, p, s_spentLifeAnimRadius / SUB_PIXEL );
     }
   }
@@ -970,15 +985,14 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
   GRect b = layer_get_bounds(this_layer);
   graphics_context_set_antialiased(ctx, 0);
 
-  // Fill grey back
-  graphics_context_set_fill_color(ctx, GColorLightGray);
+  // Fill grey back (white on BW)
+  graphics_context_set_fill_color(ctx, COLOR_FALLBACK(GColorLightGray, GColorWhite));
   graphics_context_set_stroke_color(ctx, GColorBlack);
   graphics_fill_rect(ctx, b, 0, GCornersAll);
-  //graphics_draw_rect(ctx, b);
 
-  // Frame highlight around currently selected square
-  graphics_context_set_fill_color(ctx, GColorDarkGray);
-  graphics_context_set_stroke_color(ctx, GColorWhite);
+  // Frame highlight around currently selected square colours is gray w white highlight, BW is wite w black highight
+  graphics_context_set_fill_color(ctx, COLOR_FALLBACK(GColorDarkGray, GColorWhite));
+  graphics_context_set_stroke_color(ctx, COLOR_FALLBACK(GColorWhite, GColorBlack));
   GRect highlightR = GRect(s_cursor.x*PIECE_PIXELS, s_cursor.y*PIECE_PIXELS, PIECE_PIXELS+1, PIECE_PIXELS+1);
   graphics_fill_rect(ctx, highlightR, 0, GCornersAll);
   graphics_draw_rect(ctx, highlightR);
@@ -987,12 +1001,12 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
   for (int x = 0; x < BOARD_PIECES_X; ++x) {
     for (int y = 0; y < BOARD_PIECES_Y; ++y) {
       int xy = XY(x,y);
-      if (s_gameState == kFlashRemoved && s_pieces[xy].match != kUnmatched) {
+      if (s_gameState == kFlashRemoved && (s_pieces[xy].match != kUnmatched || s_pieces[XY(x,y)].exploded == true)) {
         // Highlight squares which have just been matched
-        GColor highlight = GColorRed;
-        if (s_pieces[xy].match == kMatchedTwice) highlight = GColorDarkCandyAppleRed;
+        GColor highlight = COLOR_FALLBACK(GColorRed, GColorBlack);
+        if (s_pieces[xy].match == kMatchedTwice) highlight = COLOR_FALLBACK(GColorDarkCandyAppleRed, GColorBlack);
         graphics_context_set_fill_color(ctx, highlight);
-        graphics_context_set_stroke_color(ctx, GColorBlack);
+        graphics_context_set_stroke_color(ctx, COLOR_FALLBACK(GColorBlack, GColorLightGray));
         highlightR = GRect((s_pieces[xy].loc.x/SUB_PIXEL), (s_pieces[xy].loc.y/SUB_PIXEL), PIECE_PIXELS+1, PIECE_PIXELS+1);
         graphics_fill_rect(ctx, highlightR, 0, GCornersAll);
         graphics_draw_rect(ctx, highlightR);
@@ -1000,8 +1014,16 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
       // Draw the shape itself
       graphics_context_set_fill_color(ctx, COLOURS[ s_pieces[xy].colour ]);
       if (getShape( s_pieces[xy].colour ) != NULL) {
-        if (s_pieces[xy].colour == kBlack) graphics_context_set_stroke_color(ctx, GColorWhite);
-        else graphics_context_set_stroke_color(ctx, GColorBlack);
+        static const bool bw = PBL_IF_BW_ELSE(true,false);
+        if (bw == false && s_pieces[xy].colour == kBlack ) {
+          graphics_context_set_stroke_color(ctx, GColorWhite);
+        } else if (bw == true
+          && (s_pieces[xy].match != kUnmatched || s_pieces[XY(x,y)].exploded == true)
+          && COLOURS[ s_pieces[xy].colour ].argb != GColorWhite.argb ) {
+          graphics_context_set_stroke_color(ctx, GColorWhite);
+        } else {
+          graphics_context_set_stroke_color(ctx, GColorBlack);
+        }
         gpath_move_to(getShape( s_pieces[xy].colour ), GPoint(s_pieces[xy].loc.x/SUB_PIXEL, s_pieces[xy].loc.y/SUB_PIXEL));
         gpath_draw_filled(ctx, getShape( s_pieces[xy].colour ));
         gpath_draw_outline(ctx, getShape( s_pieces[xy].colour ));
@@ -1013,7 +1035,7 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
   }
 
   // Move Arrows
-  if (s_frame >= ANIM_FPS/2 && s_gameState == kAwaitingDirection) {
+  if (s_flashArrows == true && s_gameState == kAwaitingDirection) {
     graphics_context_set_fill_color(ctx, GColorWhite);
     for (int d = 0; d < N_CARDINAL; ++d) {
       gpath_move_to(getArrow(d), GPoint(s_cursor.x * PIECE_PIXELS, s_cursor.y * PIECE_PIXELS));
@@ -1031,8 +1053,8 @@ static void boardUpdateProc(Layer* this_layer, GContext *ctx) {
   }
 
   // Next move
-  if (s_score.hintOn && s_availableMove.x != -1 && s_gameState == kIdle && getHintStatus() == true) {
-    graphics_context_set_stroke_color(ctx, GColorDarkCandyAppleRed);
+  if (s_hintOn && s_availableMove.x != -1 && s_gameState == kIdle && s_hintStatus == true) {
+    graphics_context_set_stroke_color(ctx, COLOR_FALLBACK(GColorDarkCandyAppleRed,GColorBlack) );
     graphics_context_set_stroke_width(ctx, 3);
     graphics_draw_circle(ctx, GPoint(s_availableMove.x*PIECE_PIXELS + PIECE_PIXELS/2, s_availableMove.y*PIECE_PIXELS + PIECE_PIXELS/2), PIECE_PIXELS);
     graphics_context_set_stroke_width(ctx, 1);

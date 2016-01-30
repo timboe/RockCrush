@@ -39,17 +39,16 @@ static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
   // Modify for round screen
   b.size.w -= ROUND_REDUCTION * 2;
   b.origin.x += ROUND_REDUCTION;
+  b.size.h -= (ROUND_REDUCTION * 3) / 4;
   #endif
 
-  GRect titleR = GRect(b.origin.x + 5, 5, b.size.w - 10, 4 * b.size.h / 10);
-
+  GRect titleR = GRect(b.origin.x + 5, 5, b.size.w - 10, PBL_IF_ROUND_ELSE((9*b.size.h)/20, (4*b.size.h)/10) );
   // Fill back
   graphics_context_set_fill_color(ctx, GColorLightGray);
   graphics_fill_rect(ctx, titleR, 10, GCornersAll);
-
   // Fill screws
   graphics_context_set_stroke_color(ctx, GColorBlack);
-  graphics_context_set_fill_color(ctx, GColorDarkGray);
+  graphics_context_set_fill_color(ctx, COLOR_FALLBACK(GColorDarkGray, GColorLightGray));
   GPoint screw_one = GPoint(titleR.origin.x + 1*titleR.size.w/6 - 2, titleR.origin.y + 2*titleR.size.h/3);
   GPoint screw_two = GPoint(titleR.origin.x + 5*titleR.size.w/6 - 2, titleR.origin.y + 1*titleR.size.h/3);
   graphics_fill_circle(ctx, screw_one, 4);
@@ -59,17 +58,10 @@ static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
   graphics_context_set_stroke_width(ctx, 1);
   graphics_draw_line(ctx, GPoint(screw_one.x-2, screw_one.y-2), GPoint(screw_one.x+2, screw_one.y+2));
   graphics_draw_line(ctx, GPoint(screw_two.x+3, screw_two.y-1), GPoint(screw_two.x-3, screw_two.y+1));
-  graphics_context_set_stroke_width(ctx, 1);
-
-  // Fill borders
-  graphics_context_set_stroke_color(ctx, GColorBlack);
-  graphics_context_set_stroke_width(ctx, 5);
-  graphics_draw_rect(ctx, titleR);
-  // Fill Frame
   graphics_context_set_stroke_width(ctx, 3);
   GRect middle_wall = GRect(titleR.origin.x + 1, titleR.origin.y + 0, titleR.size.w - 2, titleR.size.h - 0);
   GRect inner_wall  = GRect(titleR.origin.x + 2, titleR.origin.y + 2, titleR.size.w - 4, titleR.size.h - 4);
-  graphics_context_set_stroke_color(ctx, GColorDarkGray);
+  graphics_context_set_stroke_color(ctx, COLOR_FALLBACK(GColorDarkGray, GColorLightGray));
   graphics_draw_round_rect(ctx, middle_wall, 10);
   graphics_context_set_stroke_color(ctx, GColorBlack);
   graphics_context_set_stroke_width(ctx, 1);
@@ -90,20 +82,19 @@ static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
   static const char txtA[] = "ROCK";
   static const char txtB[] = "Crusher";
 
-  draw3DText(ctx, rectA, fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK), txtA, 2, GTextAlignmentLeft, false, GColorBlack, GColorBlack);
-  draw3DText(ctx, rectB, fonts_get_system_font(FONT_KEY_GOTHIC_28), txtB, 2, GTextAlignmentRight, false, GColorBlack, GColorBlack);
+  bool bw = PBL_IF_BW_ELSE(true,false);
+  draw3DText(ctx, rectA, fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK), txtA, 2, GTextAlignmentLeft, bw, GColorBlack, GColorWhite);
+  draw3DText(ctx, rectB, fonts_get_system_font(FONT_KEY_GOTHIC_28), txtB, 2, GTextAlignmentRight, bw, GColorBlack, GColorWhite);
 
   GRect optionsR = GRect(b.origin.x + 5, b.size.h - (9*b.size.h/20) - 5, b.size.w - 10, 4*b.size.h/10);
-  graphics_context_set_fill_color(ctx, GColorLightGray);
+  graphics_context_set_fill_color(ctx, COLOR_FALLBACK(GColorLightGray, GColorWhite));
   graphics_fill_rect(ctx, optionsR, 10, GCornersAll);
   graphics_context_set_stroke_color(ctx, GColorBlack);
-  graphics_context_set_stroke_width(ctx, 5);
-  graphics_draw_rect(ctx, optionsR);
   // Fill Frame
   graphics_context_set_stroke_width(ctx, 3);
   middle_wall = GRect(optionsR.origin.x + 1, optionsR.origin.y + 0, optionsR.size.w - 2, optionsR.size.h - 0);
   inner_wall  = GRect(optionsR.origin.x + 2, optionsR.origin.y + 2, optionsR.size.w - 4, optionsR.size.h - 4);
-  graphics_context_set_stroke_color(ctx, GColorDarkGray);
+  graphics_context_set_stroke_color(ctx, COLOR_FALLBACK(GColorDarkGray, GColorLightGray));
   graphics_draw_round_rect(ctx, middle_wall, 10);
   graphics_context_set_stroke_color(ctx, GColorBlack);
   graphics_context_set_stroke_width(ctx, 1);
@@ -111,7 +102,7 @@ static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
 
   //Draw arrows
   if (s_arrowBlink) {
-    graphics_context_set_fill_color(ctx, GColorWhite);
+    graphics_context_set_fill_color(ctx, COLOR_FALLBACK(GColorWhite, GColorLightGray));
     if (s_selectedMenuItem > s_minOption) {
       gpath_move_to(getArrow(kN), GPoint(b.origin.x + 30, b.size.h - (9*b.size.h/20) - 2) );
       gpath_draw_filled(ctx, getArrow(kN));
@@ -121,29 +112,14 @@ static void splashUpdateProc(Layer* thisLayer, GContext *ctx) {
       gpath_draw_outline(ctx, getArrow(kN));
     }
     if (s_selectedMenuItem < MENU_ITEMS-1) {
-      gpath_move_to(getArrow(kS), GPoint(b.origin.x + 30, b.size.h - (b.size.h/20) - 25) );
+      gpath_move_to(getArrow(kS), GPoint(b.origin.x + 30, b.size.h - (b.size.h/20) - PBL_IF_ROUND_ELSE(24,25) ));
       gpath_draw_filled(ctx, getArrow(kS));
       gpath_draw_outline(ctx, getArrow(kS));
-      gpath_move_to(getArrow(kS), GPoint(b.size.w + b.origin.x - 45, b.size.h - (b.size.h/20) - 25) );
+      gpath_move_to(getArrow(kS), GPoint(b.size.w + b.origin.x - 45, b.size.h - (b.size.h/20) - PBL_IF_ROUND_ELSE(24,25) ));
       gpath_draw_filled(ctx, getArrow(kS));
       gpath_draw_outline(ctx, getArrow(kS));
     }
   }
-
-  //Do ticker
-  // GRect tickR = GRect(b.size.w - s_tickerTape*2, 64, 256, 20);
-  // graphics_context_set_stroke_color(ctx, GColorLightGray);
-  // for (int i = 1; i < N_COLOURS; ++i) {
-  //   graphics_context_set_text_color(ctx, COLOURS[i]);
-  //   graphics_context_set_fill_color(ctx, COLOURS[i]);
-  //   if (i == kBlack) graphics_context_set_text_color(ctx, GColorLightGray);
-  //   gpath_move_to(getShape(i), GPoint(tickR.origin.x, tickR.origin.y+3));
-  //   gpath_draw_filled(ctx, getShape(i));
-  //   gpath_draw_outline(ctx, getShape(i));
-  //   tickR.origin.x += 18;
-  //   graphics_draw_text(ctx, COLOUR_TEXT[i], fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), tickR, GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
-  //   tickR.origin.x += 50;
-  // }
 
 }
 
@@ -159,8 +135,6 @@ void tick(void* data) {
   }
 
   int desiredOffset = s_selectedMenuItem * 50 * SUB_PIXEL;
-
-//APP_LOG(APP_LOG_LEVEL_DEBUG, "desired %i current %i", desiredOffset/100, s_textOff/100 );
 
   if (desiredOffset < s_textOff) {
     v += GRAVITY * 10;
@@ -262,6 +236,8 @@ void splashWindowLoad(Window* parentWindow) {
   // Modify for round screen
   b.size.w -= ROUND_REDUCTION * 2;
   b.origin.x += ROUND_REDUCTION;
+  b.size.h -= (ROUND_REDUCTION * 3) / 4;
+  h -= (ROUND_REDUCTION * 3) / 4;
   #endif
 
   s_scrollLayer = layer_create( GRect(b.origin.x + 3*BORDER, h - (9*h/20) - 2, b.size.w - 6*BORDER, (4*h/10) - BORDER - 1) );

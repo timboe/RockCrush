@@ -1,6 +1,9 @@
 #pragma once
 #include <pebble.h>
 
+#define DEBUG_MODE
+#define AUTO_MODE
+
 #define MS_IN_SEC 1000
 #define ANIM_FPS 24
 #define ANIM_FRAMES ANIM_FPS*ANIM_DURATION
@@ -29,9 +32,18 @@
 #define TEXT_COLOUR_D GColorRajah
 #define TEXT_COLOUR_C GColorYellow
 
-#define HINT_TIMER MS_IN_SEC*8
+#define HINT_TIMER MS_IN_SEC*10
 
-// max is 7
+#define SWAP_STARTING_VELOCITY 80
+#define NUDGE_MAX_SPEED 90
+
+
+#ifdef PBL_COLOR
+  #define N_LEVEL_COLOURS 13
+#else
+  #define N_LEVEL_COLOURS 2
+#endif
+
 #define N_COLOURS 11
 typedef enum {
   kNONE,
@@ -50,8 +62,7 @@ typedef enum {
 typedef enum {
   kUnmatched,
   kMatchedOnce,
-  kMatchedTwice,
-  kExploded
+  kMatchedTwice
 } MatchState_t;
 
 typedef enum {
@@ -98,6 +109,7 @@ typedef struct {
   Colour_t colour;
   GPoint loc;
   MatchState_t match;
+  bool exploded;
   Colour_t promoteFlag;
   int v;
 } Piece_t;
@@ -113,7 +125,6 @@ typedef struct {
   int lives;
   int pointBuffer; // points buffered before awarding
   int points; // points after awarded
-  int hintOn;
   int nColoursActive;
 } Score_t;
 

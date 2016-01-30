@@ -1,11 +1,11 @@
 {
   "uuid": "136dc3d3-67eb-40cb-8c76-124198827804",
-  "shortName": "RockCrush",
-  "longName": "RockCrush",
+  "shortName": "RockCrusher",
+  "longName": "Rock Crusher",
   "companyName": "TimMartin",
   "versionLabel": "1.0",
   "sdkVersion": "3",
-  "targetPlatforms": ["basalt", "chalk"],
+  "targetPlatforms": ["basalt", "chalk", "aplite"],
   "watchapp": {
     "watchface": false
   },
