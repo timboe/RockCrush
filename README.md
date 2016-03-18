@@ -5,7 +5,7 @@ A match-three style [game for Pebble](https://apps.getpebble.com/en_US/applicati
 
 Rock Crusher is a match-three game for Pebble where you swap neighbouring rocks to get at least three of the same type in a row. The game ends when you have used all your lives and there are no valid moves left on the board.
  
- ## Controls:
+## Controls:
   * Move the cursor with the RIGHT and DOWN buttons, or TILT your wrist.
   * Enter SWAP mode by pressing the UP button.
   * In SWAP mode, choose the direction to swap with the UP, DOWN, LEFT or RIGHT button, or TILT your wrist.
