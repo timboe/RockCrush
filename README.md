@@ -10,8 +10,8 @@ Rock Crusher is a match-three game for Pebble where you swap neighbouring rocks 
   * Enter SWAP mode by pressing the UP button.
   * In SWAP mode, choose the direction to swap with the UP, DOWN, LEFT or RIGHT button, or TILT your wrist.
   * When not in SWAP mode, press the LEFT button to save and exit.
- 
- ## Specials:
+
+## Specials:
   * Match four rocks in a row to make a Pearl, which can match any colour of rock.
   * Match a rock in two directions to make Black Powder - careful, it's explosive.
   *Match five rocks in a row to blast that rock type.
